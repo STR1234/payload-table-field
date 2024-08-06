@@ -100,6 +100,7 @@ export function TableControls({
             {/* {<TableFilters table={table}></TableFilters>} */}
           </div>
         </AnimateHeight>
+
       </div>
     </div>
   )

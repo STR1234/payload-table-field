@@ -24,6 +24,7 @@ const Examples: CollectionConfig = {
         paginationPageSizes: [5, 10, 25, 50, 100], // Available pagination page sizes
         editable: false, // Allow cells to be edited?
         rowSelection: true, // Enable row selection
+        rowDeletion: true,
         columns: [
           {
             key: 'id',

@@ -12,6 +12,7 @@ export const tableField = (
     columns: Record<string, any>
     editable?: boolean
     rowSelection?: boolean
+    rowDeletion?: boolean
     rowPinning?: boolean
     pagination?: boolean
     paginationPageSize?: number

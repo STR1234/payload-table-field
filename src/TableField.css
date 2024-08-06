@@ -162,3 +162,37 @@
   background-color: transparent !important;
   background: none !important;
 }
+
+.table-field .selection-controls {
+  background: var(--theme-elevation-100);
+  padding: 0.9615384615rem 1.4423076923rem;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.table-field .btn-remove-rows {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  background: var(--theme-elevation-200);
+  padding: 0.35rem 0.7rem !important;
+  color: black;
+}
+
+
+.table-field .btn-remove-rows:hover {
+  background: var(--theme-elevation-300)
+}
+
+.table-field .btn-remove-rows:active {
+  background: var(--theme-elevation-400)
+}
+
+.table-field .btn-remove-rows.btn--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.table-field .btn-remove-rows.btn--disabled:hover {
+  background: var(--theme-elevation-200);
+}

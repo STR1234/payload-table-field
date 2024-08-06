@@ -1,93 +1,69 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Props } from 'payload/components/fields/Json'
-import { Label, useField } from 'payload/components/forms'
-import Error from 'payload/dist/admin/components/forms/Error'
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Props } from 'payload/components/fields/Json';
+import { Label, useField } from 'payload/components/forms';
+import Error from 'payload/dist/admin/components/forms/Error';
 
 import {
   ColumnDef,
-  ColumnOrderState,
-  FilterFn,
+  useReactTable,
+  getCoreRowModel,
+  getSortedRowModel,
+  getPaginationRowModel,
+  getFilteredRowModel,
+  getFacetedRowModel,
+  createColumnHelper,
   PaginationState,
-  RowData,
   RowPinningState,
   SortingState,
+  ColumnOrderState,
   Table,
-  TableOptions,
-  createColumnHelper,
   flexRender,
-  getCoreRowModel,
-  getFacetedRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from '@tanstack/react-table'
-import {
-  checkboxColumn,
-  fuzzyFilter,
-  PinnedRow,
-  pinningColumn,
-  useSkipper,
-} from './TableFieldHelpers'
-import { RankingInfo } from '@tanstack/match-sorter-utils'
-import { TablePagination } from './TablePagination'
-import { TableControls } from './TableControls'
-import { TableHeaders } from './TableHeaders'
+} from '@tanstack/react-table';
+import { checkboxColumn, fuzzyFilter, PinnedRow, pinningColumn, useSkipper } from './TableFieldHelpers';
+import { TablePagination } from './TablePagination';
+import { TableControls } from './TableControls';
+import { TableHeaders } from './TableHeaders';
+import { Button } from 'payload/components/elements'
+// import X from 'payload/dist/admin/components/icons/X';
 
 declare module '@tanstack/react-table' {
-  interface TableMeta<TData extends RowData> {
-    updateData: (rowIndex: number, columnId: string, value: unknown) => void
-  }
-}
-
-declare module '@tanstack/table-core' {
-  interface FilterFns {
-    fuzzy: FilterFn<unknown>
-  }
-  interface FilterMeta {
-    itemRank: RankingInfo
+  interface TableMeta<TData> {
+    updateData: (rowIndex: number, columnId: string, value: unknown) => void;
   }
 }
 
 type TableFieldProps = Props & {
-  path: string
-  type: 'json'
-  tableOptions: Omit<
-    TableOptions<any>,
-    'rows' | 'columns' | 'data' | 'getCoreRowModel' | 'filterFns'
-  > & {
-    columns: Record<string, any>
-    columnOrder: Record<string, number>
-    editable?: boolean
-    rowSelection?: boolean
-    rowPinning?: boolean
-    pagination?: boolean
-    paginationPageSize?: number
-    paginationPageIndex?: number
-    paginationPageSizes?: number[]
-    debugTable?: boolean
-  }
-}
+  path: string;
+  label: string;
+  required: boolean;
+  validate: (value: any, options: any) => boolean;
+  tableOptions: {
+    columns: Record<string, any>;
+    columnOrder: Record<string, number>;
+    editable?: boolean;
+    rowSelection?: boolean;
+    rowDeletion?: boolean;
+    rowPinning?: boolean;
+    pagination?: boolean;
+    paginationPageSize?: number;
+    paginationPageIndex?: number;
+    paginationPageSizes?: number[];
+    debugTable?: boolean;
+  };
+};
 
-const TableField: React.FC<TableFieldProps> = ({
-  path,
-  label,
-  required,
-  validate,
-  tableOptions,
-}) => {
+const TableField: React.FC<TableFieldProps> = ({ path, label, required, validate, tableOptions }) => {
   const memoizedValidate = useCallback(
     (value: any[], options: any) => {
       if (validate) {
-        return validate(value, { ...options, required })
+        return validate(value, { ...options, required });
       }
-      return true
+      return true;
     },
-    [validate, required],
-  )
+    [validate, required]
+  );
 
-  /** Create columns */
-  const columnHelper = createColumnHelper<any>()
+  const columnHelper = createColumnHelper<any>();
   const columns = useMemo<ColumnDef<unknown>[]>(
     () => [
       ...(tableOptions.rowPinning ? [pinningColumn] : []),
@@ -96,77 +72,53 @@ const TableField: React.FC<TableFieldProps> = ({
         return columnHelper.accessor(column.key, {
           enableSorting: column.enableSorting || false,
           cell: ({ getValue, row: { index }, column: { id }, table }) => {
-            const initialValue = getValue()
-            const [value, setValue] = useState(initialValue)
+            const initialValue = getValue();
+            const [value, setValue] = useState(initialValue);
 
             const onBlur = () => {
-              table.options.meta?.updateData(index, id, value)
-              data[index][id] = value
-              field.setValue(data)
-            }
+              table.options.meta?.updateData(index, id, value);
+              data[index][id] = value;
+              setValueInField(data);
+            };
 
             useEffect(() => {
-              setValue(initialValue)
-            }, [initialValue])
+              setValue(initialValue);
+            }, [initialValue]);
 
             return (
               <input
                 value={value as string}
-                onChange={e => setValue(e.target.value)}
+                onChange={(e) => setValue(e.target.value)}
                 onBlur={onBlur}
               />
-            )
+            );
           },
-        })
+        });
       }),
     ],
-    [],
-  )
+    []
+  );
 
-  /** Field setup */
-  const field = useField<any[]>({ path, validate: memoizedValidate })
-  const { value, showError, setValue, errorMessage } = field
+  const field = useField<any[]>({ path, validate: memoizedValidate });
+  const { value, showError, setValue: setValueInField, errorMessage } = field;
 
-  /** Pagination */
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: tableOptions.paginationPageIndex || 0,
     pageSize: tableOptions.paginationPageSize || 10,
-  })
+  });
 
-  /** Row selection */
-  const [rowSelection, setRowSelection] = useState({})
+  const [rowSelection, setRowSelection] = useState({});
+  const [rowPinning, setRowPinning] = useState<RowPinningState>({ top: [], bottom: [] });
+  const [keepPinnedRows, setKeepPinnedRows] = useState(true);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [data, setData] = useState(() => [...value]);
+  const [columnVisibility, setColumnVisibility] = useState({});
+  const [columnOrder, setColumnOrder] = useState<ColumnOrderState>([]);
+  const [globalFilter, setGlobalFilter] = useState('');
+  const [autoResetPageIndex, skipAutoResetPageIndex] = useSkipper();
+  const [showFilters, setShowFilters] = useState(false);
+  const [showColumns, setShowColumns] = useState(false);
 
-  /** Row Pinning */
-  const [rowPinning, setRowPinning] = React.useState<RowPinningState>({
-    top: [],
-    bottom: [],
-  })
-  const [keepPinnedRows, setKeepPinnedRows] = React.useState(true)
-  // const [copyPinnedRows, setCopyPinnedRows] = React.useState(false)
-
-  /** Sorting */
-  const [sorting, setSorting] = useState<SortingState>([])
-
-  /** Data */
-  const [data, setData] = useState(() => [...value])
-
-  /** Column visiblity */
-  const [columnVisibility, setColumnVisibility] = React.useState({})
-
-  /** Column order */
-  const [columnOrder, setColumnOrder] = React.useState<ColumnOrderState>([])
-
-  /** Global filter */
-  const [globalFilter, setGlobalFilter] = React.useState('')
-
-  /** Skip page reset */
-  const [autoResetPageIndex, skipAutoResetPageIndex] = useSkipper()
-
-  /** Controls panel visibility */
-  const [showFilters, setShowFilters] = useState(false)
-  const [showColumns, setShowColumns] = useState(false)
-
-  /** Table config */
   const tableBaseConfig = {
     state: {
       rowSelection: tableOptions.rowSelection ? rowSelection : undefined,
@@ -199,24 +151,28 @@ const TableField: React.FC<TableFieldProps> = ({
     meta: tableOptions.editable
       ? {
           updateData: (rowIndex: number, columnId: any, value: any) => {
-            skipAutoResetPageIndex()
-            setData(old =>
+            skipAutoResetPageIndex();
+            setData((old) =>
               old.map((row, index) => {
                 if (index === rowIndex) {
                   return {
                     ...old[rowIndex]!,
                     [columnId]: value,
-                  }
+                  };
                 }
-                return row
-              }),
-            )
+                return row;
+              })
+            );
           },
         }
       : undefined,
     keepPinnedRows: tableOptions.rowPinning && keepPinnedRows,
     debugTable: tableOptions.debugTable,
-  }
+  };
+
+  useEffect(() => {
+    setValueInField(data);
+  }, [data]);
 
   const tableFieldTemplate = (path: string, label: string, table: Table<any>) => (
     <div className="table-field">
@@ -227,50 +183,79 @@ const TableField: React.FC<TableFieldProps> = ({
       <TableControls
         table={table}
         globalFilter={globalFilter}
-        onGlobalFilterChange={value => {
-          setGlobalFilter(value)
+        onGlobalFilterChange={(value) => {
+          setGlobalFilter(value);
         }}
-        onToggleShowColumns={value => setShowColumns(value)}
-        onToggleShowFilters={value => setShowFilters(value)}
+        onToggleShowColumns={(value) => setShowColumns(value)}
+        onToggleShowFilters={(value) => setShowFilters(value)}
         showFilters={showFilters}
         showColumns={showColumns}
       ></TableControls>
+    {(
+      <div className="selection-controls">
+        <div>
+          {Object.keys(rowSelection).length} of {table.getPreFilteredRowModel().rows.length} Rows
+          Selected
+        </div>
+
+        {(tableOptions.rowDeletion ?? <Button
+              aria-expanded={showColumns}
+              aria-controls="example-panel"
+              disabled={!Object.keys(rowSelection).length}
+              onClick={() => {
+                const selectedRowIds = Object.keys(table.getSelectedRowModel().rowsById);
+    
+                setData((data) => {
+                  return data.filter((row) => !selectedRowIds.includes(`${row.id}`));
+                });
+    
+                table.resetRowSelection();
+              }}
+              className="btn-remove-rows pill pill--style-light pill--has-action btn--style-primary"
+            >
+            Delete Rows
+            </Button>)}
+      </div>
+
+    )}
 
       <div className="table">
         <table>
           <TableHeaders table={table}></TableHeaders>
           <tbody>
             {tableOptions.rowPinning &&
-              table.getTopRows().map(row => <PinnedRow key={row.id} row={row} table={table} />)}
-            {table.getRowModel().rows.map(row => {
+              table.getTopRows().map((row) => <PinnedRow key={row.id} row={row} table={table} />)}
+            {table.getRowModel().rows.map((row) => {
               return (
                 <tr key={row.id}>
-                  {row.getVisibleCells().map(cell => {
+                  {row.getVisibleCells().map((cell) => {
                     return (
                       <td key={cell.id}>
                         {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </td>
-                    )
+                    );
                   })}
                 </tr>
-              )
+              );
             })}
           </tbody>
         </table>
       </div>
+
       {tableOptions.pagination && (
         <TablePagination table={table} pageSizes={[5, 10, 25, 50]}></TablePagination>
       )}
     </div>
-  )
+  );
 
   const table = useReactTable({
     data,
     columns,
     ...tableBaseConfig,
-  })
+    getRowId: (originalRow) => (originalRow as { id: any })!.id,
+  });
 
-  return tableFieldTemplate(path, (label as string) || 'T', table)
-}
+  return tableFieldTemplate(path, (label as string) || 'T', table);
+};
 
-export default TableField
+export default TableField;
