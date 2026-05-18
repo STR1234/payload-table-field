@@ -1,106 +1,83 @@
-import { Table } from '@tanstack/react-table'
-import React, { Dispatch, SetStateAction } from 'react'
-import Chevron from 'payload/dist/admin/components/icons/Chevron'
-import { DebouncedInput } from './TableFieldHelpers'
-import Search from 'payload/dist/admin/components/icons/Search'
-import { Button } from 'payload/components/elements'
+import type { Table } from '@tanstack/react-table'
 import AnimateHeight from 'react-animate-height'
-import X from 'payload/dist/admin/components/icons/X'
-import Plus from 'payload/dist/admin/components/icons/Plus'
+import { DebouncedInput } from './TableFieldHelpers.js'
+import { ChevronIcon, PlusIcon, SearchIcon, XIcon } from './TableIcons.js'
 
 interface TableControlsProps {
-  onGlobalFilterChange: Dispatch<SetStateAction<string>>
+  onGlobalFilterChange: (value: string) => void
+  onToggleShowColumns: () => void
   table: Table<any>
   globalFilter: string
-  onToggleShowFilters: Dispatch<SetStateAction<boolean>>
-  onToggleShowColumns: Dispatch<SetStateAction<boolean>>
-  showFilters: boolean
   showColumns: boolean
+}
+
+const getColumnLabel = (column: ReturnType<Table<any>['getAllLeafColumns']>[number]) => {
+  const meta = column.columnDef.meta as { label?: string } | undefined
+
+  return meta?.label ?? column.id
 }
 
 export function TableControls({
   table,
   onGlobalFilterChange,
   globalFilter,
-  showFilters,
   showColumns,
   onToggleShowColumns,
-  onToggleShowFilters,
 }: TableControlsProps) {
   return (
-    <div className="table-field-top-controls">
-      <div className="list-controls__wrap">
-        <div className="search-filter">
+    <div className="payload-table-field__toolbar">
+      <div className="payload-table-field__toolbar-main">
+        <div className="payload-table-field__search">
           <DebouncedInput
             value={globalFilter ?? ''}
-            onChange={value => {
-              onGlobalFilterChange(String(value))
-            }}
-            className="search-filter__input"
+            onChange={value => onGlobalFilterChange(String(value))}
+            className="payload-table-field__search-input"
             placeholder="Search table..."
           />
-          <Search></Search>
+          <span className="payload-table-field__search-icon">
+            <SearchIcon size={16} />
+          </span>
         </div>
 
-        <div className="list-controls__buttons">
-          <div className="list-controls__buttons-wrap">
-            <Button
-              aria-expanded={showColumns}
-              aria-controls="example-panel"
-              onClick={() => {
-                onToggleShowColumns(!showColumns)
-              }}
-              className="pill pill--style-light list-controls__toggle-columns  pill--has-action pill--has-icon pill--align-icon-right"
-            >
-              <span className="pill__label">Columns</span>
-              <Chevron direction={showColumns ? 'up' : 'down'}></Chevron>
-            </Button>
+        <button
+          aria-expanded={showColumns}
+          className={`payload-table-field__button${
+            showColumns ? ' payload-table-field__button--active' : ''
+          }`}
+          onClick={onToggleShowColumns}
+          type="button"
+        >
+          <span className="payload-table-field__button-label">
+            Columns
+            <ChevronIcon direction={showColumns ? 'up' : 'down'} size={14} />
+          </span>
+        </button>
+      </div>
 
-            <Button
-              aria-expanded={showFilters}
-              aria-controls="example-panel"
-              onClick={() => {
-                onToggleShowFilters(!showFilters)
-              }}
-              className="pill pill--style-light list-controls__toggle-columns  pill--has-action pill--has-icon pill--align-icon-right"
-            >
-              <span className="pill__label">Filters</span>
-              <Chevron direction={showFilters ? 'up' : 'down'}></Chevron>
-            </Button>
-          </div>
+      <AnimateHeight duration={200} height={showColumns ? 'auto' : 0}>
+        <div className="payload-table-field__column-panel">
+          {table
+            .getAllLeafColumns()
+            .filter(column => column.id !== 'pin' && column.id !== 'select')
+            .map(column => {
+              const isVisible = column.getIsVisible()
+
+              return (
+                <button
+                  className={`payload-table-field__pill${
+                    !isVisible ? ' payload-table-field__pill--inactive' : ''
+                  }`}
+                  key={column.id}
+                  onClick={column.getToggleVisibilityHandler()}
+                  type="button"
+                >
+                  {isVisible ? <XIcon size={12} /> : <PlusIcon size={12} />}
+                  <span className="payload-table-field__pill-label">{getColumnLabel(column)}</span>
+                </button>
+              )
+            })}
         </div>
-      </div>
-
-      <div>
-        <AnimateHeight duration={250} height={showColumns ? 'auto' : 0}>
-          <div className="list-controls__wrap column-visibility">
-            {table
-              .getAllLeafColumns()
-              .filter(c => c.id !== 'select')
-              .map(column => {
-                return (
-                  <Button
-                    key={column.id}
-                    onClick={column.getToggleVisibilityHandler()}
-                    className={
-                      (column.getIsVisible() ? '' : 'column-selector__column--active') +
-                      ' pill pill--style-light pill--has-action pill--has-icon pill--align-icon-left pill--draggable'
-                    }
-                  >
-                    {column.getIsVisible() ? <X></X> : <Plus></Plus>}
-                    <span className="pill__label">{column.id}</span>
-                  </Button>
-                )
-              })}
-          </div>
-        </AnimateHeight>
-
-        <AnimateHeight duration={250} height={showFilters ? 'auto' : 0}>
-          <div className="list-controls__wrap filters">
-            {/* {<TableFilters table={table}></TableFilters>} */}
-          </div>
-        </AnimateHeight>
-      </div>
+      </AnimateHeight>
     </div>
   )
 }

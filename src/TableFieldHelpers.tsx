@@ -1,11 +1,14 @@
-import React, { HTMLProps, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import Check from 'payload/dist/admin/components/icons/Check'
-import { FilterFn, flexRender, Row, Table } from '@tanstack/react-table'
 import { rankItem } from '@tanstack/match-sorter-utils'
-import X from 'payload/dist/admin/components/icons/X'
+import type { FilterFn, Row, Table } from '@tanstack/react-table'
+import { flexRender } from '@tanstack/react-table'
+import type { HTMLProps } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+
+import { CheckIcon, PinIcon, XIcon } from './TableIcons.js'
 
 /** Checkbox column definition  */
 export const checkboxColumn = {
+  enableHiding: false,
   id: 'select',
   header: ({ table }: { table: any }) => (
     <IndeterminateCheckbox
@@ -35,23 +38,22 @@ export function IndeterminateCheckbox({
   ...rest
 }: { indeterminate?: boolean } & HTMLProps<HTMLInputElement>) {
   const ref = useRef<HTMLInputElement>(null!)
+  const isChecked = Boolean(rest.checked)
 
   useEffect(() => {
     if (typeof indeterminate === 'boolean') {
-      ref.current.indeterminate = !rest.checked && indeterminate
+      ref.current.indeterminate = !isChecked && indeterminate
     }
-  }, [ref, indeterminate])
+  }, [indeterminate, isChecked])
 
   return (
     <div
-      className={
-        'checkbox-input ' + (rest.checked ? 'select-row__checkbox checkbox-input--checked' : '')
-      }
+      className={`payload-table-field__checkbox${
+        isChecked ? ' payload-table-field__checkbox--checked' : ''
+      }`}
     >
-      <div className="checkbox-input__input">
-        <input type="checkbox" ref={ref} className={className + ' cursor-pointer'} {...rest} />
-        {rest.checked ? <Check></Check> : ''}
-      </div>
+      <input type="checkbox" ref={ref} className={className} {...rest} />
+      {isChecked ? <CheckIcon size={12} /> : null}
     </div>
   )
 }
@@ -59,38 +61,27 @@ export function IndeterminateCheckbox({
 /** Row Pinning Column */
 
 export const pinningColumn = {
+  enableHiding: false,
   id: 'pin',
   header: () => 'Pin',
   cell: ({ row }: { row: any }) =>
     row.getIsPinned() ? (
       <button
         type="button"
-        style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+        aria-label="Unpin row"
+        className="payload-table-field__pin-button"
         onClick={() => row.pin(false, false, false)}
       >
-        <X></X>
+        <XIcon />
       </button>
     ) : (
       <button
         type="button"
-        style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+        aria-label="Pin row"
+        className="payload-table-field__pin-button"
         onClick={() => row.pin('top', false, false)}
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="18"
-          height="18"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="lucide lucide-pin"
-        >
-          <line x1="12" x2="12" y1="17" y2="22" />
-          <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" />
-        </svg>
+        <PinIcon />
       </button>
     ),
 }
@@ -98,14 +89,11 @@ export const pinningColumn = {
 export function PinnedRow({ row, table }: { row: Row<any>; table: Table<any> }) {
   return (
     <tr
+      className="payload-table-field__pinned-row"
       style={{
         backgroundColor: 'var(--theme-elevation-200)',
         position: 'sticky',
-        top: row.getIsPinned() === 'top' ? `${row.getPinnedIndex() * 26 + 48}px` : undefined,
-        // bottom:
-        //   row.getIsPinned() === 'bottom'
-        //     ? `${(table.getBottomRows().length - 1 - row.getPinnedIndex()) * 26}px`
-        //     : undefined,
+        top: row.getIsPinned() === 'top' ? `${row.getPinnedIndex() * 49 + 49}px` : undefined,
       }}
     >
       {row.getVisibleCells().map(cell => {
@@ -154,7 +142,7 @@ export function DebouncedInput({
     }, debounce)
 
     return () => clearTimeout(timeout)
-  }, [value])
+  }, [debounce, onChange, value])
 
   return <input {...props} value={value} onChange={e => setValue(e.target.value)} />
 }

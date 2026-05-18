@@ -1,19 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react'
-import { Props } from 'payload/components/fields/Json'
-import { Label, useField } from 'payload/components/forms'
-import Error from 'payload/dist/admin/components/forms/Error'
+'use client'
 
+import { FieldLabel, useField } from '@payloadcms/ui'
+import { RankingInfo } from '@tanstack/match-sorter-utils'
 import {
-  ColumnDef,
-  ColumnOrderState,
-  FilterFn,
-  PaginationState,
-  RowData,
-  RowPinningState,
-  SortingState,
-  Table,
-  TableOptions,
-  createColumnHelper,
   flexRender,
   getCoreRowModel,
   getFacetedRowModel,
@@ -21,22 +10,40 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
+  type ColumnDef,
+  type FilterFn,
+  type PaginationState,
+  type RowData,
+  type RowPinningState,
+  type SortingState,
 } from '@tanstack/react-table'
+import type { JSONFieldClientComponent } from 'payload'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
+
+import { TableControls } from './TableControls.js'
+import './TableField.css'
 import {
   checkboxColumn,
   fuzzyFilter,
   PinnedRow,
   pinningColumn,
   useSkipper,
-} from './TableFieldHelpers'
-import { RankingInfo } from '@tanstack/match-sorter-utils'
-import { TablePagination } from './TablePagination'
-import { TableControls } from './TableControls'
-import { TableHeaders } from './TableHeaders'
+} from './TableFieldHelpers.js'
+import { TableHeaders } from './TableHeaders.js'
+import { TablePagination } from './TablePagination.js'
+import {
+  TABLE_FIELD_CUSTOM_KEY,
+  type TableFieldColumnConfig,
+  type TableFieldConfig,
+} from './types.js'
 
 declare module '@tanstack/react-table' {
   interface TableMeta<TData extends RowData> {
     updateData: (rowIndex: number, columnId: string, value: unknown) => void
+  }
+
+  interface ColumnMeta<TData extends RowData, TValue> {
+    label?: string
   }
 }
 
@@ -49,228 +56,286 @@ declare module '@tanstack/table-core' {
   }
 }
 
-type TableFieldProps = Props & {
-  path: string
-  type: 'json'
-  tableOptions: Omit<
-    TableOptions<any>,
-    'rows' | 'columns' | 'data' | 'getCoreRowModel' | 'filterFns'
-  > & {
-    columns: Record<string, any>
-    columnOrder: Record<string, number>
-    editable?: boolean
-    rowSelection?: boolean
-    rowPinning?: boolean
-    pagination?: boolean
-    paginationPageSize?: number
-    paginationPageIndex?: number
-    paginationPageSizes?: number[]
-    debugTable?: boolean
+type TableRow = Record<string, unknown>
+type TableFieldProps = React.ComponentProps<JSONFieldClientComponent>
+
+const formatCellValue = (value: unknown): string => {
+  if (value === null || value === undefined) {
+    return ''
+  }
+
+  if (typeof value === 'boolean' || typeof value === 'number' || typeof value === 'string') {
+    return String(value)
+  }
+
+  try {
+    return JSON.stringify(value)
+  } catch {
+    return ''
   }
 }
 
-const TableField: React.FC<TableFieldProps> = ({
-  path,
-  label,
-  required,
-  validate,
-  tableOptions,
+const normalizeTableValue = (value: unknown): TableRow[] => {
+  if (!Array.isArray(value)) {
+    return []
+  }
+
+  return value.map(row => {
+    if (row && typeof row === 'object' && !Array.isArray(row)) {
+      return row as TableRow
+    }
+
+    return {}
+  })
+}
+
+const getTableConfig = (field: TableFieldProps['field']): TableFieldConfig | undefined => {
+  const adminCustom = field.admin?.custom as Record<string, unknown> | undefined
+  const config = adminCustom?.[TABLE_FIELD_CUSTOM_KEY] ?? adminCustom?.tableField
+
+  if (!config || typeof config !== 'object') {
+    return undefined
+  }
+
+  return config as TableFieldConfig
+}
+
+type EditableCellProps = {
+  column: TableFieldColumnConfig
+  columnId: string
+  isReadOnly: boolean
+  onCommit: (value: string) => void
+  value: unknown
+}
+
+const EditableCell: React.FC<EditableCellProps> = ({
+  column,
+  columnId,
+  isReadOnly,
+  onCommit,
+  value,
 }) => {
+  const [inputValue, setInputValue] = useState(formatCellValue(value))
+
+  useEffect(() => {
+    setInputValue(formatCellValue(value))
+  }, [value])
+
+  if (isReadOnly) {
+    return <span>{formatCellValue(value)}</span>
+  }
+
+  return (
+    <input
+      aria-label={column.label ?? column.name ?? columnId}
+      className="payload-table-field__cell-input"
+      onBlur={() => onCommit(inputValue)}
+      onChange={event => setInputValue(event.target.value)}
+      onKeyDown={event => {
+        if (event.key === 'Enter') {
+          event.currentTarget.blur()
+        }
+      }}
+      placeholder={column.placeholder}
+      type={column.inputType ?? 'text'}
+      value={inputValue}
+    />
+  )
+}
+
+export const TableFieldClient: JSONFieldClientComponent = ({ field, path, readOnly, validate }) => {
+  const tableConfig = getTableConfig(field)
+
   const memoizedValidate = useCallback(
-    (value: any[], options: any) => {
-      if (validate) {
-        return validate(value, { ...options, required })
+    (value: TableRow[] | null | undefined, options: Record<string, unknown>) => {
+      if (!validate) {
+        return true
       }
-      return true
+
+      return (
+        validate as (
+          value: TableRow[] | null | undefined,
+          options: Record<string, unknown>,
+        ) => string | Promise<string | true> | true
+      )(value, options)
     },
-    [validate, required],
+    [validate],
   )
 
-  /** Create columns */
-  const columnHelper = createColumnHelper<any>()
-  const columns = useMemo<ColumnDef<unknown>[]>(
-    () => [
-      ...(tableOptions.rowPinning ? [pinningColumn] : []),
-      ...(tableOptions.rowSelection ? [checkboxColumn] : []),
-      ...tableOptions.columns.map((column: any) => {
-        return columnHelper.accessor(column.key, {
-          enableSorting: column.enableSorting || false,
-          cell: ({ getValue, row: { index }, column: { id }, table }) => {
-            const initialValue = getValue()
-            const [value, setValue] = useState(initialValue)
+  const { errorMessage, setValue, showError, value } = useField<TableRow[]>({
+    path,
+    validate: memoizedValidate as never,
+  })
 
-            const onBlur = () => {
-              table.options.meta?.updateData(index, id, value)
-              data[index][id] = value
-              field.setValue(data)
-            }
-
-            useEffect(() => {
-              setValue(initialValue)
-            }, [initialValue])
-
-            return (
-              <input
-                value={value as string}
-                onChange={e => setValue(e.target.value)}
-                onBlur={onBlur}
-              />
-            )
-          },
-        })
-      }),
-    ],
-    [],
-  )
-
-  /** Field setup */
-  const field = useField<any[]>({ path, validate: memoizedValidate })
-  const { value, showError, setValue, errorMessage } = field
-
-  /** Pagination */
+  const [data, setData] = useState<TableRow[]>(() => normalizeTableValue(value))
   const [pagination, setPagination] = useState<PaginationState>({
-    pageIndex: tableOptions.paginationPageIndex || 0,
-    pageSize: tableOptions.paginationPageSize || 10,
+    pageIndex: tableConfig?.paginationPageIndex ?? 0,
+    pageSize: tableConfig?.paginationPageSize ?? 10,
   })
-
-  /** Row selection */
   const [rowSelection, setRowSelection] = useState({})
-
-  /** Row Pinning */
-  const [rowPinning, setRowPinning] = React.useState<RowPinningState>({
-    top: [],
+  const [rowPinning, setRowPinning] = useState<RowPinningState>({
     bottom: [],
+    top: [],
   })
-  const [keepPinnedRows, setKeepPinnedRows] = React.useState(true)
-  // const [copyPinnedRows, setCopyPinnedRows] = React.useState(false)
-
-  /** Sorting */
   const [sorting, setSorting] = useState<SortingState>([])
-
-  /** Data */
-  const [data, setData] = useState(() => [...value])
-
-  /** Column visiblity */
-  const [columnVisibility, setColumnVisibility] = React.useState({})
-
-  /** Column order */
-  const [columnOrder, setColumnOrder] = React.useState<ColumnOrderState>([])
-
-  /** Global filter */
-  const [globalFilter, setGlobalFilter] = React.useState('')
-
-  /** Skip page reset */
+  const [columnVisibility, setColumnVisibility] = useState({})
+  const [globalFilter, setGlobalFilter] = useState('')
+  const [showColumns, setShowColumns] = useState(false)
   const [autoResetPageIndex, skipAutoResetPageIndex] = useSkipper()
 
-  /** Controls panel visibility */
-  const [showFilters, setShowFilters] = useState(false)
-  const [showColumns, setShowColumns] = useState(false)
+  useEffect(() => {
+    setData(normalizeTableValue(value))
+  }, [value])
 
-  /** Table config */
-  const tableBaseConfig = {
-    state: {
-      rowSelection: tableOptions.rowSelection ? rowSelection : undefined,
-      rowPinning: tableOptions.rowPinning ? rowPinning : undefined,
-      sorting,
-      pagination: tableOptions.pagination ? pagination : undefined,
-      columnVisibility,
-      columnOrder,
-      globalFilter,
+  const updateData = useCallback(
+    (rowIndex: number, columnId: string, nextValue: unknown) => {
+      skipAutoResetPageIndex()
+
+      const nextData = data.map((row, index) => {
+        if (index === rowIndex) {
+          return {
+            ...row,
+            [columnId]: nextValue,
+          }
+        }
+
+        return row
+      })
+
+      setData(nextData)
+      setValue(nextData)
     },
-    columnOrder: ['title', 'id', 'year'],
-    enableRowSelection: tableOptions.rowSelection,
-    onRowSelectionChange: tableOptions.rowSelection ? setRowSelection : undefined,
-    onRowPinningChange: tableOptions.rowPinning ? setRowPinning : undefined,
-    onSortingChange: tableOptions.rowSelection ? setSorting : undefined,
-    onColumnVisibilityChange: setColumnVisibility,
-    onColumnOrderChange: setColumnOrder,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: tableOptions.rowSelection ? getSortedRowModel() : undefined,
-    getPaginationRowModel: tableOptions.pagination ? getPaginationRowModel() : undefined,
-    onPaginationChange: tableOptions.pagination ? setPagination : undefined,
-    onGlobalFilterChange: setGlobalFilter,
-    getFacetedRowModel: getFacetedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    globalFilterFn: fuzzyFilter,
+    [data, setValue, skipAutoResetPageIndex],
+  )
+
+  const columns = useMemo<ColumnDef<TableRow>[]>(() => {
+    const configuredColumns = tableConfig?.columns ?? []
+
+    return [
+      ...(tableConfig?.rowPinning ? [pinningColumn as ColumnDef<TableRow>] : []),
+      ...(tableConfig?.rowSelection ? [checkboxColumn as ColumnDef<TableRow>] : []),
+      ...configuredColumns.map<ColumnDef<TableRow>>(column => ({
+        accessorKey: column.key,
+        enableSorting: Boolean(column.enableSorting),
+        header: column.label ?? column.name ?? column.key,
+        meta: {
+          label: column.label ?? column.name ?? column.key,
+        },
+        cell: ({ getValue, row, column: tableColumn }) => (
+          <EditableCell
+            column={column}
+            columnId={tableColumn.id}
+            isReadOnly={Boolean(readOnly) || Boolean(column.readOnly) || !tableConfig?.editable}
+            onCommit={nextValue => updateData(row.index, tableColumn.id, nextValue)}
+            value={getValue()}
+          />
+        ),
+      })),
+    ]
+  }, [readOnly, tableConfig, updateData])
+
+  const table = useReactTable<TableRow>({
+    data,
+    columns,
+    state: {
+      columnVisibility,
+      globalFilter,
+      pagination: tableConfig?.pagination ? pagination : undefined,
+      rowPinning: tableConfig?.rowPinning ? rowPinning : undefined,
+      rowSelection: tableConfig?.rowSelection ? rowSelection : undefined,
+      sorting,
+    },
+    autoResetPageIndex: tableConfig?.editable ? autoResetPageIndex : undefined,
+    debugTable: tableConfig?.debugTable,
+    enableRowSelection: Boolean(tableConfig?.rowSelection),
     filterFns: {
       fuzzy: fuzzyFilter,
     },
-    autoResetPageIndex: tableOptions.editable ? autoResetPageIndex : undefined,
-    meta: tableOptions.editable
+    getCoreRowModel: getCoreRowModel(),
+    getFacetedRowModel: getFacetedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getPaginationRowModel: tableConfig?.pagination ? getPaginationRowModel() : undefined,
+    getSortedRowModel: getSortedRowModel(),
+    globalFilterFn: fuzzyFilter,
+    keepPinnedRows: Boolean(tableConfig?.rowPinning),
+    meta: tableConfig?.editable
       ? {
-          updateData: (rowIndex: number, columnId: any, value: any) => {
-            skipAutoResetPageIndex()
-            setData(old =>
-              old.map((row, index) => {
-                if (index === rowIndex) {
-                  return {
-                    ...old[rowIndex]!,
-                    [columnId]: value,
-                  }
-                }
-                return row
-              }),
-            )
-          },
+          updateData,
         }
       : undefined,
-    keepPinnedRows: tableOptions.rowPinning && keepPinnedRows,
-    debugTable: tableOptions.debugTable,
-  }
+    onColumnVisibilityChange: setColumnVisibility,
+    onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: tableConfig?.pagination ? setPagination : undefined,
+    onRowPinningChange: tableConfig?.rowPinning ? setRowPinning : undefined,
+    onRowSelectionChange: tableConfig?.rowSelection ? setRowSelection : undefined,
+    onSortingChange: setSorting,
+  })
 
-  const tableFieldTemplate = (path: string, label: string, table: Table<any>) => (
-    <div className="table-field">
-      <Error showError={showError} message={errorMessage as string} />
-      <Label htmlFor={path} label={label} required={required} />
-      <div className="h-2" />
+  const visibleColumnCount = Math.max(table.getVisibleLeafColumns().length, 1)
+  const centerRows = tableConfig?.rowPinning ? table.getCenterRows() : table.getRowModel().rows
 
-      <TableControls
-        table={table}
-        globalFilter={globalFilter}
-        onGlobalFilterChange={value => {
-          setGlobalFilter(value)
-        }}
-        onToggleShowColumns={value => setShowColumns(value)}
-        onToggleShowFilters={value => setShowFilters(value)}
-        showFilters={showFilters}
-        showColumns={showColumns}
-      ></TableControls>
+  return (
+    <div className="payload-table-field">
+      {showError && errorMessage ? (
+        <div className="payload-table-field__error">{errorMessage}</div>
+      ) : null}
 
-      <div className="table">
-        <table>
-          <TableHeaders table={table}></TableHeaders>
-          <tbody>
-            {tableOptions.rowPinning &&
-              table.getTopRows().map(row => <PinnedRow key={row.id} row={row} table={table} />)}
-            {table.getRowModel().rows.map(row => {
-              return (
-                <tr key={row.id}>
-                  {row.getVisibleCells().map(cell => {
-                    return (
-                      <td key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </td>
-                    )
-                  })}
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-      {tableOptions.pagination && (
-        <TablePagination table={table} pageSizes={[5, 10, 25, 50]}></TablePagination>
+      <FieldLabel label={field.label ?? field.name} path={path} required={field.required} />
+
+      {!tableConfig?.columns?.length ? (
+        <p className="payload-table-field__empty">Configure at least one table column.</p>
+      ) : (
+        <>
+          <TableControls
+            globalFilter={globalFilter}
+            onGlobalFilterChange={setGlobalFilter}
+            onToggleShowColumns={() => setShowColumns(currentValue => !currentValue)}
+            showColumns={showColumns}
+            table={table}
+          />
+
+          <div className="payload-table-field__table-wrap">
+            <table className="payload-table-field__table">
+              <TableHeaders table={table} />
+              <tbody>
+                {tableConfig.rowPinning
+                  ? table
+                      .getTopRows()
+                      .map(row => <PinnedRow key={row.id} row={row} table={table} />)
+                  : null}
+
+                {centerRows.length > 0 ? (
+                  centerRows.map(row => (
+                    <tr key={row.id}>
+                      {row.getVisibleCells().map(cell => (
+                        <td key={cell.id}>
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </td>
+                      ))}
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td className="payload-table-field__empty-state" colSpan={visibleColumnCount}>
+                      No rows to display.
+                    </td>
+                  </tr>
+                )}
+
+                {tableConfig.rowPinning
+                  ? table
+                      .getBottomRows()
+                      .map(row => <PinnedRow key={row.id} row={row} table={table} />)
+                  : null}
+              </tbody>
+            </table>
+          </div>
+
+          {tableConfig.pagination ? (
+            <TablePagination table={table} pageSizes={tableConfig.paginationPageSizes} />
+          ) : null}
+        </>
       )}
     </div>
   )
-
-  const table = useReactTable({
-    data,
-    columns,
-    ...tableBaseConfig,
-  })
-
-  return tableFieldTemplate(path, (label as string) || 'T', table)
 }
-
-export default TableField

@@ -1,6 +1,6 @@
-import { Table } from '@tanstack/react-table'
-import React, { HTMLProps, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import Chevron from 'payload/dist/admin/components/icons/Chevron'
+import type { Table } from '@tanstack/react-table'
+
+import { ChevronIcon } from './TableIcons.js'
 
 interface TablePaginationProps {
   table: Table<any>
@@ -8,81 +8,82 @@ interface TablePaginationProps {
 }
 
 export function TablePagination({ table, pageSizes }: TablePaginationProps) {
+  const pageCount = Math.max(table.getPageCount(), 1)
+  const pageIndex = table.getState().pagination.pageIndex
+  const pageSize = table.getState().pagination.pageSize
+  const rowCount = table.getRowCount()
+  const rangeStart = rowCount === 0 ? 0 : pageIndex * pageSize + 1
+  const rangeEnd = rowCount === 0 ? 0 : Math.min((pageIndex + 1) * pageSize, rowCount)
+
   return (
-    <div className="table-field-controls">
-      <div className="table-field-pagination">
+    <div className="payload-table-field__pagination">
+      <div className="payload-table-field__page-controls">
         <button
-          className={
-            'clickable-arrow' + (!table.getCanPreviousPage() ? ' clickable-arrow--is-disabled' : '')
-          }
-          onClick={e => {
-            e.preventDefault()
+          className={`payload-table-field__clickable-arrow${
+            !table.getCanPreviousPage() ? ' payload-table-field__clickable-arrow--disabled' : ''
+          }`}
+          onClick={event => {
+            event.preventDefault()
             table.previousPage()
           }}
           disabled={!table.getCanPreviousPage()}
+          type="button"
         >
-          <Chevron size="small" direction="left"></Chevron>
+          <ChevronIcon direction="left" size={14} />
         </button>
         <button
-          className={
-            'clickable-arrow' + (!table.getCanNextPage() ? ' clickable-arrow--is-disabled' : '')
-          }
-          onClick={e => {
-            e.preventDefault()
+          className={`payload-table-field__clickable-arrow${
+            !table.getCanNextPage() ? ' payload-table-field__clickable-arrow--disabled' : ''
+          }`}
+          onClick={event => {
+            event.preventDefault()
             table.nextPage()
           }}
           disabled={!table.getCanNextPage()}
+          type="button"
         >
-          <Chevron size="small" direction="right"></Chevron>
+          <ChevronIcon direction="right" size={14} />
         </button>
 
-        <div className="pagination-label">
+        <div className="payload-table-field__page-status">
           <div>Page</div>
           <strong>
-            {table.getState().pagination.pageIndex + 1} of {table.getPageCount().toLocaleString()}
+            {pageIndex + 1} of {pageCount.toLocaleString()}
           </strong>
         </div>
 
-        <div className="goto">
-          <span className="divider">|</span>
-          <span className="goto-label">Page: </span>
+        <label className="payload-table-field__page-jump">
+          <span>Go to</span>
           <input
-            type="number"
-            defaultValue={table.getState().pagination.pageIndex + 1}
-            onChange={e => {
-              const page = e.target.value ? Number(e.target.value) - 1 : 0
-              table.setPageIndex(page)
+            className="payload-table-field__page-input"
+            max={pageCount}
+            min={1}
+            onChange={event => {
+              const nextPage = event.target.value ? Number(event.target.value) - 1 : 0
+              table.setPageIndex(nextPage)
             }}
-            className="goto-input"
+            type="number"
+            value={pageIndex + 1}
           />
-        </div>
+        </label>
       </div>
 
-      <div className="per-page">
+      <div className="payload-table-field__page-size-wrap">
         <div>
-          {(
-            table.getState().pagination.pageIndex * table.getState().pagination.pageSize +
-            1
-          ).toLocaleString()}
-          {' - '}
-          {(
-            table.getState().pagination.pageIndex * table.getState().pagination.pageSize +
-            1 +
-            table.getState().pagination.pageSize -
-            1
-          ).toLocaleString()}{' '}
-          of {table.getRowCount().toLocaleString()}
+          {rangeStart.toLocaleString()} - {rangeEnd.toLocaleString()} of{' '}
+          {table.getRowCount().toLocaleString()}
         </div>
 
         <select
-          value={table.getState().pagination.pageSize}
-          onChange={e => {
-            table.setPageSize(Number(e.target.value))
+          className="payload-table-field__page-size"
+          onChange={event => {
+            table.setPageSize(Number(event.target.value))
           }}
+          value={pageSize}
         >
-          {(pageSizes || [5, 10, 25, 50, 100]).map(pageSize => (
-            <option key={pageSize} value={pageSize}>
-              Per Page: {pageSize}
+          {(pageSizes || [5, 10, 25, 50, 100]).map(pageSizeValue => (
+            <option key={pageSizeValue} value={pageSizeValue}>
+              Per page: {pageSizeValue}
             </option>
           ))}
         </select>

@@ -1,38 +1,36 @@
-import { JSONField } from 'payload/dist/exports/types'
-import TableField from './TableField'
-import { TableOptions } from '@tanstack/table-core'
-import './TableField.css'
+import type { JSONField } from 'payload'
+
+import {
+  TABLE_FIELD_COMPONENT_PATH,
+  TABLE_FIELD_CUSTOM_KEY,
+  type TableFieldConfig,
+  type TableFieldOptions,
+} from './types.js'
+
+export { TABLE_FIELD_COMPONENT_PATH, TABLE_FIELD_CUSTOM_KEY } from './types.js'
+export type { TableFieldColumnConfig, TableFieldConfig, TableFieldOptions } from './types.js'
 
 export const tableField = (
-  options: Omit<JSONField, 'type'>,
-  tableOptions: Omit<
-    TableOptions<unknown>,
-    'rows' | 'columns' | 'data' | 'getCoreRowModel' | 'filterFns'
-  > & {
-    columns: Record<string, any>
-    editable?: boolean
-    rowSelection?: boolean
-    rowPinning?: boolean
-    pagination?: boolean
-    paginationPageSize?: number
-    paginationPageIndex?: number
-    paginationPageSizes?: number[]
-    // collection?: string
-    debugTable?: boolean
-  },
+  options: TableFieldOptions,
+  tableOptions: TableFieldConfig,
 ): JSONField => {
+  const incomingAdmin = options.admin ?? {}
+  const incomingComponents = incomingAdmin.components ?? {}
+  const incomingAdminCustom = incomingAdmin.custom ?? {}
+
   return {
+    ...options,
     type: 'json',
     admin: {
+      ...incomingAdmin,
+      custom: {
+        ...incomingAdminCustom,
+        [TABLE_FIELD_CUSTOM_KEY]: tableOptions,
+      },
       components: {
-        Field: props => {
-          return TableField({
-            ...props,
-            tableOptions: tableOptions,
-          })
-        },
+        ...incomingComponents,
+        Field: TABLE_FIELD_COMPONENT_PATH,
       },
     },
-    ...options,
   }
 }

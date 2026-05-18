@@ -1,6 +1,7 @@
-import { Table, flexRender } from '@tanstack/react-table'
-import React from 'react'
-import Chevron from 'payload/dist/admin/components/icons/Chevron'
+import type { Table } from '@tanstack/react-table'
+import { flexRender } from '@tanstack/react-table'
+
+import { ChevronIcon } from './TableIcons.js'
 
 interface TableHeadersProps {
   table: Table<any>
@@ -8,43 +9,41 @@ interface TableHeadersProps {
 
 export function TableHeaders({ table }: TableHeadersProps) {
   return (
-    <thead>
+    <thead className="payload-table-field__table-head">
       {table.getHeaderGroups().map(headerGroup => (
         <tr key={headerGroup.id}>
           {headerGroup.headers.map(header => {
             return (
               <th key={header.id} colSpan={header.colSpan}>
                 {header.isPlaceholder ? null : (
-                  <div
-                    {...{
-                      className:
-                        (header.column.getCanSort() ? 'cursor-pointer select-none' : '') +
-                        ' sort-header',
-                    }}
-                  >
-                    {flexRender(header.column.columnDef.header, header.getContext())}
+                  <div className="payload-table-field__sort-header">
+                    <span className="payload-table-field__sort-label">
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                    </span>
 
                     {header.column.getCanSort() && (
-                      <div className="sort-controls">
+                      <div className="payload-table-field__sort-buttons">
                         <button
                           onClick={() => header.column.toggleSorting(true)}
-                          className={
-                            'sort-column__desc sort-column__button ' +
-                            (header.column.getIsSorted() === 'desc' ? 'sort-column--active' : '')
-                          }
+                          className={`payload-table-field__sort-button${
+                            header.column.getIsSorted() === 'desc'
+                              ? ' payload-table-field__sort-button--active'
+                              : ''
+                          }`}
                           type="button"
                         >
-                          <Chevron direction="down"></Chevron>
+                          <ChevronIcon direction="down" size={12} />
                         </button>
                         <button
                           onClick={() => header.column.toggleSorting(false)}
-                          className={
-                            'sort-column__asc sort-column__button ' +
-                            (header.column.getIsSorted() === 'asc' ? 'sort-column--active' : '')
-                          }
+                          className={`payload-table-field__sort-button${
+                            header.column.getIsSorted() === 'asc'
+                              ? ' payload-table-field__sort-button--active'
+                              : ''
+                          }`}
                           type="button"
                         >
-                          <Chevron direction="up"></Chevron>
+                          <ChevronIcon direction="up" size={12} />
                         </button>
                       </div>
                     )}

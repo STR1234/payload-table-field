@@ -3,22 +3,23 @@
     "lib": [
       "dom",
       "dom.iterable",
-      "esnext"
+      "es2022"
     ],
-    "target": "es5",
+    "target": "es2022",
     "outDir": "./dist",
     "allowJs": true,
-    "module": "commonjs",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "sourceMap": true,
-    "jsx": "react",
+    "jsx": "react-jsx",
     "esModuleInterop": true,
     "declaration": true,
     "declarationDir": "./dist",
     "skipLibCheck": true,
-    "strict": true,
+    "strict": true
   },
   "include": [
-    "src/**/*",
+    "src/**/*"
   ],
   "ts-node": {
     "transpileOnly": true,
