@@ -1,13 +1,19 @@
 import type { Table } from '@tanstack/react-table'
 
+import type { TableFieldUIStrings } from './TableFieldI18n.js'
 import { ChevronIcon } from './TableIcons.js'
 
 interface TablePaginationProps {
+  formatNumber: (value: number) => string
   table: Table<any>
   pageSizes?: number[]
+  strings: Pick<
+    TableFieldUIStrings,
+    'goToPage' | 'nextPage' | 'of' | 'page' | 'perPage' | 'previousPage'
+  >
 }
 
-export function TablePagination({ table, pageSizes }: TablePaginationProps) {
+export function TablePagination({ formatNumber, table, pageSizes, strings }: TablePaginationProps) {
   const pageCount = Math.max(table.getPageCount(), 1)
   const pageIndex = table.getState().pagination.pageIndex
   const pageSize = table.getState().pagination.pageSize
@@ -19,6 +25,7 @@ export function TablePagination({ table, pageSizes }: TablePaginationProps) {
     <div className="payload-table-field__pagination">
       <div className="payload-table-field__page-controls">
         <button
+          aria-label={strings.previousPage}
           className={`payload-table-field__clickable-arrow${
             !table.getCanPreviousPage() ? ' payload-table-field__clickable-arrow--disabled' : ''
           }`}
@@ -32,6 +39,7 @@ export function TablePagination({ table, pageSizes }: TablePaginationProps) {
           <ChevronIcon direction="left" size={14} />
         </button>
         <button
+          aria-label={strings.nextPage}
           className={`payload-table-field__clickable-arrow${
             !table.getCanNextPage() ? ' payload-table-field__clickable-arrow--disabled' : ''
           }`}
@@ -46,14 +54,14 @@ export function TablePagination({ table, pageSizes }: TablePaginationProps) {
         </button>
 
         <div className="payload-table-field__page-status">
-          <div>Page</div>
+          <div>{strings.page}</div>
           <strong>
-            {pageIndex + 1} of {pageCount.toLocaleString()}
+            {formatNumber(pageIndex + 1)} {strings.of} {formatNumber(pageCount)}
           </strong>
         </div>
 
         <label className="payload-table-field__page-jump">
-          <span>Go to</span>
+          <span>{strings.goToPage}</span>
           <input
             className="payload-table-field__page-input"
             max={pageCount}
@@ -70,8 +78,8 @@ export function TablePagination({ table, pageSizes }: TablePaginationProps) {
 
       <div className="payload-table-field__page-size-wrap">
         <div>
-          {rangeStart.toLocaleString()} - {rangeEnd.toLocaleString()} of{' '}
-          {table.getRowCount().toLocaleString()}
+          {formatNumber(rangeStart)} - {formatNumber(rangeEnd)} {strings.of}{' '}
+          {formatNumber(rowCount)}
         </div>
 
         <select
@@ -83,7 +91,7 @@ export function TablePagination({ table, pageSizes }: TablePaginationProps) {
         >
           {(pageSizes || [5, 10, 25, 50, 100]).map(pageSizeValue => (
             <option key={pageSizeValue} value={pageSizeValue}>
-              Per page: {pageSizeValue}
+              {strings.perPage}: {formatNumber(pageSizeValue)}
             </option>
           ))}
         </select>

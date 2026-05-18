@@ -1,27 +1,13 @@
-FROM node:18.8-alpine as base
+FROM node:20-alpine
 
-FROM base as builder
+WORKDIR /workspace/dev
 
-WORKDIR /home/node/app
-COPY package*.json ./
+COPY . /workspace
 
-COPY . .
-RUN yarn install
-RUN yarn build
-
-FROM base as runtime
-
-ENV NODE_ENV=production
-ENV PAYLOAD_CONFIG_PATH=dist/payload.config.js
-
-WORKDIR /home/node/app
-COPY package*.json  ./
-COPY yarn.lock ./
-
-RUN yarn install --production
-COPY --from=builder /home/node/app/dist ./dist
-COPY --from=builder /home/node/app/build ./build
+RUN npm install --prefix /workspace --no-package-lock
+RUN npm install --prefix /workspace/dev --no-package-lock
+RUN npm --prefix /workspace/dev run build
 
 EXPOSE 3000
 
-CMD ["node", "dist/server.js"]
+CMD ["npm", "--prefix", "/workspace/dev", "run", "start"]

@@ -1,7 +1,8 @@
-import { CollectionConfig, Field } from 'payload/types'
-//@ts-ignore
-import { tableField } from '../../../src/index'
+import type { CollectionConfig } from 'payload'
+
+import { tableField } from 'payload-table-field'
 import mockData from '../mocks/mockData'
+
 const Examples: CollectionConfig = {
   slug: 'examples',
   admin: {
@@ -11,30 +12,70 @@ const Examples: CollectionConfig = {
     {
       type: 'text',
       name: 'title',
+      required: true,
     },
     tableField(
       {
         name: 'table_example',
         label: 'Example Table - Movies',
         defaultValue: mockData,
+        required: true,
       },
       {
-        pagination: true, // Enable pagination?
-        paginationPageSize: 10, // Default pagination page size
-        paginationPageSizes: [5, 10, 25, 50, 100], // Available pagination page sizes
-        editable: false, // Allow cells to be edited?
-        rowSelection: true, // Enable row selection
+        editable: true,
+        filters: true,
+        pagination: true,
+        paginationPageSize: 10,
+        paginationPageSizes: [5, 10, 25, 50, 100],
+        rowPinning: true,
+        rowSelection: true,
         columns: [
           {
             key: 'id',
-            name: 'ID',
-            enableSorting: true, // Allow this column to be sorted
+            label: {
+              de: 'ID',
+              en: 'ID',
+              nl: 'ID',
+            },
+            enableSorting: true,
+            readOnly: true,
           },
-          { key: 'title', name: 'Title' },
-          { key: 'year', name: 'Year' },
+          {
+            key: 'title',
+            label: {
+              de: 'Titel',
+              en: 'Title',
+              nl: 'Titel',
+            },
+            enableSorting: true,
+            placeholder: {
+              de: 'Titel eingeben',
+              en: 'Enter title',
+              nl: 'Voer titel in',
+            },
+          },
+          {
+            key: 'year',
+            label: {
+              de: 'Jahr',
+              en: 'Year',
+              nl: 'Jaar',
+            },
+            enableSorting: true,
+            placeholder: {
+              de: 'Jahr eingeben',
+              en: 'Enter year',
+              nl: 'Voer jaar in',
+            },
+          },
         ],
+        translations: {
+          nl: {
+            addCondition: 'Voorwaarde toevoegen',
+          },
+        },
       },
-    ) as Field,
+    ),
   ],
 }
 

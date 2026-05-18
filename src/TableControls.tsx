@@ -1,11 +1,18 @@
 import type { Table } from '@tanstack/react-table'
+import type { ReactNode } from 'react'
 import AnimateHeight from 'react-animate-height'
+
 import { DebouncedInput } from './TableFieldHelpers.js'
+import type { TableFieldUIStrings } from './TableFieldI18n.js'
 import { ChevronIcon, PlusIcon, SearchIcon, XIcon } from './TableIcons.js'
 
 interface TableControlsProps {
+  filterPanel?: ReactNode
   onGlobalFilterChange: (value: string) => void
   onToggleShowColumns: () => void
+  onToggleShowFilters?: () => void
+  showFilters?: boolean
+  strings: Pick<TableFieldUIStrings, 'columns' | 'filters' | 'searchPlaceholder'>
   table: Table<any>
   globalFilter: string
   showColumns: boolean
@@ -18,11 +25,15 @@ const getColumnLabel = (column: ReturnType<Table<any>['getAllLeafColumns']>[numb
 }
 
 export function TableControls({
+  filterPanel,
   table,
   onGlobalFilterChange,
   globalFilter,
   showColumns,
   onToggleShowColumns,
+  onToggleShowFilters,
+  showFilters,
+  strings,
 }: TableControlsProps) {
   return (
     <div className="payload-table-field__toolbar">
@@ -32,7 +43,7 @@ export function TableControls({
             value={globalFilter ?? ''}
             onChange={value => onGlobalFilterChange(String(value))}
             className="payload-table-field__search-input"
-            placeholder="Search table..."
+            placeholder={strings.searchPlaceholder}
           />
           <span className="payload-table-field__search-icon">
             <SearchIcon size={16} />
@@ -48,10 +59,26 @@ export function TableControls({
           type="button"
         >
           <span className="payload-table-field__button-label">
-            Columns
+            {strings.columns}
             <ChevronIcon direction={showColumns ? 'up' : 'down'} size={14} />
           </span>
         </button>
+
+        {filterPanel && onToggleShowFilters ? (
+          <button
+            aria-expanded={showFilters}
+            className={`payload-table-field__button${
+              showFilters ? ' payload-table-field__button--active' : ''
+            }`}
+            onClick={onToggleShowFilters}
+            type="button"
+          >
+            <span className="payload-table-field__button-label">
+              {strings.filters}
+              <ChevronIcon direction={showFilters ? 'up' : 'down'} size={14} />
+            </span>
+          </button>
+        ) : null}
       </div>
 
       <AnimateHeight duration={200} height={showColumns ? 'auto' : 0}>
@@ -78,6 +105,12 @@ export function TableControls({
             })}
         </div>
       </AnimateHeight>
+
+      {filterPanel ? (
+        <AnimateHeight duration={200} height={showFilters ? 'auto' : 0}>
+          <div className="payload-table-field__filter-panel">{filterPanel}</div>
+        </AnimateHeight>
+      ) : null}
     </div>
   )
 }

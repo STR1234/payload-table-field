@@ -4,6 +4,7 @@ import { flexRender } from '@tanstack/react-table'
 import type { HTMLProps } from 'react'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 
+import type { TableFieldUIStrings } from './TableFieldI18n.js'
 import { CheckIcon, PinIcon, XIcon } from './TableIcons.js'
 
 /** Checkbox column definition  */
@@ -60,15 +61,17 @@ export function IndeterminateCheckbox({
 
 /** Row Pinning Column */
 
-export const pinningColumn = {
+export const createPinningColumn = (
+  labels: Pick<TableFieldUIStrings, 'pinColumn' | 'pinRow' | 'unpinRow'>,
+) => ({
   enableHiding: false,
   id: 'pin',
-  header: () => 'Pin',
+  header: () => labels.pinColumn,
   cell: ({ row }: { row: any }) =>
     row.getIsPinned() ? (
       <button
         type="button"
-        aria-label="Unpin row"
+        aria-label={labels.unpinRow}
         className="payload-table-field__pin-button"
         onClick={() => row.pin(false, false, false)}
       >
@@ -77,14 +80,14 @@ export const pinningColumn = {
     ) : (
       <button
         type="button"
-        aria-label="Pin row"
+        aria-label={labels.pinRow}
         className="payload-table-field__pin-button"
         onClick={() => row.pin('top', false, false)}
       >
         <PinIcon />
       </button>
     ),
-}
+})
 
 export function PinnedRow({ row, table }: { row: Row<any>; table: Table<any> }) {
   return (

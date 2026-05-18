@@ -8,7 +8,15 @@ import {
 } from './types.js'
 
 export { TABLE_FIELD_COMPONENT_PATH, TABLE_FIELD_CUSTOM_KEY } from './types.js'
-export type { TableFieldColumnConfig, TableFieldConfig, TableFieldOptions } from './types.js'
+export type {
+  TableFieldColumnConfig,
+  TableFieldConfig,
+  TableFieldLocalizedString,
+  TableFieldOptions,
+  TableFieldTranslationKey,
+  TableFieldTranslations,
+  TableFieldTranslationsByLocale,
+} from './types.js'
 
 export const tableField = (
   options: TableFieldOptions,

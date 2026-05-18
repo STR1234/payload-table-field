@@ -1,15 +1,13 @@
-version: '3'
-
 services:
   payload:
-    image: node:18-alpine
+    image: node:20-alpine
     ports:
       - '3000:3000'
     volumes:
-      - .:/home/node/app
-      - node_modules:/home/node/app/node_modules
-    working_dir: /home/node/app/
-    command: sh -c "yarn install && yarn dev"
+      - ..:/workspace
+      - node_modules:/workspace/dev/node_modules
+    working_dir: /workspace/dev
+    command: sh -c "npm install --no-package-lock && npm run dev"
     depends_on:
       - mongo
     env_file:

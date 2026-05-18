@@ -77,6 +77,10 @@
     padding: 0.5rem 0.8rem;
   }
 
+  .payload-table-field__button--inline {
+    width: fit-content;
+  }
+
   .payload-table-field__button:hover,
   .payload-table-field__pill:hover,
   .payload-table-field__clickable-arrow:hover,
@@ -112,6 +116,90 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.75rem;
+  }
+
+  .payload-table-field__filter-panel,
+  .payload-table-field__filters,
+  .payload-table-field__filters-empty,
+  .payload-table-field__filter-group,
+  .payload-table-field__filter-actions {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .payload-table-field__filters-label,
+  .payload-table-field__filter-connector {
+    color: var(--theme-elevation-500);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .payload-table-field__filters-groups,
+  .payload-table-field__filter-group-wrap {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .payload-table-field__filter-group {
+    background: var(--theme-elevation-25, rgba(0, 0, 0, 0.02));
+    border: 1px solid var(--theme-elevation-100);
+    border-radius: var(--style-radius-m, 6px);
+    padding: 0.875rem;
+  }
+
+  .payload-table-field__filter-row {
+    display: grid;
+    gap: 0.5rem;
+  }
+
+  .payload-table-field__filter-connector--inline {
+    margin-inline-start: 0.125rem;
+  }
+
+  .payload-table-field__filter-controls {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+
+  .payload-table-field__filter-input,
+  .payload-table-field__filter-select {
+    background: transparent;
+    border: 1px solid var(--theme-elevation-150);
+    border-radius: var(--style-radius-s, 4px);
+    color: inherit;
+    min-height: 2.5rem;
+    min-width: 10rem;
+    padding: 0.5rem 0.65rem;
+  }
+
+  .payload-table-field__filter-input {
+    flex: 1 1 12rem;
+  }
+
+  .payload-table-field__filter-input:focus,
+  .payload-table-field__filter-select:focus {
+    border-color: var(--theme-elevation-400);
+    outline: none;
+  }
+
+  .payload-table-field__filter-badge {
+    align-items: center;
+    background: var(--theme-elevation-50);
+    border: 1px dashed var(--theme-elevation-200);
+    border-radius: 999px;
+    color: var(--theme-elevation-500);
+    display: inline-flex;
+    font-size: 0.875rem;
+    min-height: 2.5rem;
+    padding: 0.5rem 0.85rem;
+  }
+
+  .payload-table-field__filter-remove {
+    flex: 0 0 auto;
   }
 
   .payload-table-field__table-wrap {
@@ -279,6 +367,17 @@
     .payload-table-field__page-controls,
     .payload-table-field__page-size-wrap {
       flex-wrap: wrap;
+    }
+
+    .payload-table-field__filter-controls {
+      align-items: stretch;
+      flex-direction: column;
+    }
+
+    .payload-table-field__filter-input,
+    .payload-table-field__filter-select {
+      min-width: 100%;
+      width: 100%;
     }
 
     .payload-table-field__table {

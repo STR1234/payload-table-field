@@ -24,18 +24,16 @@ import { TableControls } from './TableControls.js'
 import './TableField.css'
 import {
   checkboxColumn,
+  createPinningColumn,
   fuzzyFilter,
   PinnedRow,
-  pinningColumn,
   useSkipper,
 } from './TableFieldHelpers.js'
+import { useTableFieldI18n } from './TableFieldI18n.js'
+import { applyTableFilterGroups, TableFilters, type TableFilterGroup } from './TableFilters.js'
 import { TableHeaders } from './TableHeaders.js'
 import { TablePagination } from './TablePagination.js'
-import {
-  TABLE_FIELD_CUSTOM_KEY,
-  type TableFieldColumnConfig,
-  type TableFieldConfig,
-} from './types.js'
+import { TABLE_FIELD_CUSTOM_KEY, type TableFieldConfig } from './types.js'
 
 declare module '@tanstack/react-table' {
   interface TableMeta<TData extends RowData> {
@@ -57,6 +55,8 @@ declare module '@tanstack/table-core' {
 }
 
 type TableRow = Record<string, unknown>
+const TABLE_ROW_INDEX_KEY = '__payloadTableFieldOriginalIndex' as const
+type TableDisplayRow = TableRow & { [TABLE_ROW_INDEX_KEY]: number }
 type TableFieldProps = React.ComponentProps<JSONFieldClientComponent>
 
 const formatCellValue = (value: unknown): string => {
@@ -101,18 +101,22 @@ const getTableConfig = (field: TableFieldProps['field']): TableFieldConfig | und
 }
 
 type EditableCellProps = {
-  column: TableFieldColumnConfig
+  ariaLabel: string
   columnId: string
+  inputType?: string
   isReadOnly: boolean
   onCommit: (value: string) => void
+  placeholder?: string
   value: unknown
 }
 
 const EditableCell: React.FC<EditableCellProps> = ({
-  column,
+  ariaLabel,
   columnId,
+  inputType,
   isReadOnly,
   onCommit,
+  placeholder,
   value,
 }) => {
   const [inputValue, setInputValue] = useState(formatCellValue(value))
@@ -127,7 +131,7 @@ const EditableCell: React.FC<EditableCellProps> = ({
 
   return (
     <input
-      aria-label={column.label ?? column.name ?? columnId}
+      aria-label={ariaLabel || columnId}
       className="payload-table-field__cell-input"
       onBlur={() => onCommit(inputValue)}
       onChange={event => setInputValue(event.target.value)}
@@ -136,8 +140,8 @@ const EditableCell: React.FC<EditableCellProps> = ({
           event.currentTarget.blur()
         }
       }}
-      placeholder={column.placeholder}
-      type={column.inputType ?? 'text'}
+      placeholder={placeholder}
+      type={inputType ?? 'text'}
       value={inputValue}
     />
   )
@@ -145,6 +149,9 @@ const EditableCell: React.FC<EditableCellProps> = ({
 
 export const TableFieldClient: JSONFieldClientComponent = ({ field, path, readOnly, validate }) => {
   const tableConfig = getTableConfig(field)
+  const { formatNumber, resolveLocalizedString, strings } = useTableFieldI18n(
+    tableConfig?.translations,
+  )
 
   const memoizedValidate = useCallback(
     (value: TableRow[] | null | undefined, options: Record<string, unknown>) => {
@@ -181,11 +188,42 @@ export const TableFieldClient: JSONFieldClientComponent = ({ field, path, readOn
   const [columnVisibility, setColumnVisibility] = useState({})
   const [globalFilter, setGlobalFilter] = useState('')
   const [showColumns, setShowColumns] = useState(false)
+  const [showFilters, setShowFilters] = useState(false)
+  const [filterGroups, setFilterGroups] = useState<TableFilterGroup[]>([])
   const [autoResetPageIndex, skipAutoResetPageIndex] = useSkipper()
 
   useEffect(() => {
     setData(normalizeTableValue(value))
   }, [value])
+
+  useEffect(() => {
+    const configuredColumns = tableConfig?.columns ?? []
+
+    if (configuredColumns.length === 0) {
+      setFilterGroups([])
+
+      return
+    }
+
+    const fallbackColumnKey = configuredColumns[0].key
+    const availableColumnKeys = new Set(configuredColumns.map(column => column.key))
+
+    setFilterGroups(currentGroups =>
+      currentGroups.map(group => ({
+        ...group,
+        and: group.and.map(condition => {
+          if (availableColumnKeys.has(condition.columnKey)) {
+            return condition
+          }
+
+          return {
+            ...condition,
+            columnKey: fallbackColumnKey,
+          }
+        }),
+      })),
+    )
+  }, [tableConfig?.columns])
 
   const updateData = useCallback(
     (rowIndex: number, columnId: string, nextValue: unknown) => {
@@ -208,35 +246,71 @@ export const TableFieldClient: JSONFieldClientComponent = ({ field, path, readOn
     [data, setValue, skipAutoResetPageIndex],
   )
 
-  const columns = useMemo<ColumnDef<TableRow>[]>(() => {
+  const getColumnLabel = useCallback(
+    (column: NonNullable<TableFieldConfig['columns']>[number]) => {
+      return resolveLocalizedString(column.label ?? column.name, column.key)
+    },
+    [resolveLocalizedString],
+  )
+
+  const tableData = useMemo<TableDisplayRow[]>(() => {
+    return data.map((row, index) => ({
+      ...row,
+      [TABLE_ROW_INDEX_KEY]: index,
+    }))
+  }, [data])
+
+  const filteredData = useMemo(() => {
+    return applyTableFilterGroups(tableData, filterGroups)
+  }, [filterGroups, tableData])
+
+  const columns = useMemo<ColumnDef<TableDisplayRow>[]>(() => {
     const configuredColumns = tableConfig?.columns ?? []
 
     return [
-      ...(tableConfig?.rowPinning ? [pinningColumn as ColumnDef<TableRow>] : []),
-      ...(tableConfig?.rowSelection ? [checkboxColumn as ColumnDef<TableRow>] : []),
-      ...configuredColumns.map<ColumnDef<TableRow>>(column => ({
-        accessorKey: column.key,
-        enableSorting: Boolean(column.enableSorting),
-        header: column.label ?? column.name ?? column.key,
-        meta: {
-          label: column.label ?? column.name ?? column.key,
-        },
-        cell: ({ getValue, row, column: tableColumn }) => (
-          <EditableCell
-            column={column}
-            columnId={tableColumn.id}
-            isReadOnly={Boolean(readOnly) || Boolean(column.readOnly) || !tableConfig?.editable}
-            onCommit={nextValue => updateData(row.index, tableColumn.id, nextValue)}
-            value={getValue()}
-          />
-        ),
-      })),
-    ]
-  }, [readOnly, tableConfig, updateData])
+      ...(tableConfig?.rowPinning
+        ? [
+            createPinningColumn({
+              pinColumn: strings.pinColumn,
+              pinRow: strings.pinRow,
+              unpinRow: strings.unpinRow,
+            }) as ColumnDef<TableDisplayRow>,
+          ]
+        : []),
+      ...(tableConfig?.rowSelection ? [checkboxColumn as ColumnDef<TableDisplayRow>] : []),
+      ...configuredColumns.map<ColumnDef<TableDisplayRow>>(column => {
+        const columnLabel = getColumnLabel(column)
+        const placeholder = resolveLocalizedString(column.placeholder)
 
-  const table = useReactTable<TableRow>({
-    data,
+        return {
+          accessorKey: column.key,
+          enableSorting: Boolean(column.enableSorting),
+          header: columnLabel,
+          meta: {
+            label: columnLabel,
+          },
+          cell: ({ getValue, row, column: tableColumn }) => (
+            <EditableCell
+              ariaLabel={columnLabel}
+              columnId={tableColumn.id}
+              inputType={column.inputType}
+              isReadOnly={Boolean(readOnly) || Boolean(column.readOnly) || !tableConfig?.editable}
+              onCommit={nextValue =>
+                updateData(row.original[TABLE_ROW_INDEX_KEY], tableColumn.id, nextValue)
+              }
+              placeholder={placeholder || undefined}
+              value={getValue()}
+            />
+          ),
+        }
+      }),
+    ]
+  }, [getColumnLabel, readOnly, resolveLocalizedString, strings, tableConfig, updateData])
+
+  const table = useReactTable<TableDisplayRow>({
     columns,
+    data: filteredData,
+    getRowId: row => String(row[TABLE_ROW_INDEX_KEY]),
     state: {
       columnVisibility,
       globalFilter,
@@ -273,6 +347,7 @@ export const TableFieldClient: JSONFieldClientComponent = ({ field, path, readOn
 
   const visibleColumnCount = Math.max(table.getVisibleLeafColumns().length, 1)
   const centerRows = tableConfig?.rowPinning ? table.getCenterRows() : table.getRowModel().rows
+  const filtersEnabled = tableConfig?.filters !== false
 
   return (
     <div className="payload-table-field">
@@ -283,20 +358,36 @@ export const TableFieldClient: JSONFieldClientComponent = ({ field, path, readOn
       <FieldLabel label={field.label ?? field.name} path={path} required={field.required} />
 
       {!tableConfig?.columns?.length ? (
-        <p className="payload-table-field__empty">Configure at least one table column.</p>
+        <p className="payload-table-field__empty">{strings.configureColumns}</p>
       ) : (
         <>
           <TableControls
+            filterPanel={
+              filtersEnabled ? (
+                <TableFilters
+                  columns={tableConfig.columns}
+                  groups={filterGroups}
+                  onChange={setFilterGroups}
+                  resolveColumnLabel={getColumnLabel}
+                  strings={strings}
+                />
+              ) : undefined
+            }
             globalFilter={globalFilter}
             onGlobalFilterChange={setGlobalFilter}
             onToggleShowColumns={() => setShowColumns(currentValue => !currentValue)}
+            onToggleShowFilters={
+              filtersEnabled ? () => setShowFilters(currentValue => !currentValue) : undefined
+            }
             showColumns={showColumns}
+            showFilters={showFilters}
+            strings={strings}
             table={table}
           />
 
           <div className="payload-table-field__table-wrap">
             <table className="payload-table-field__table">
-              <TableHeaders table={table} />
+              <TableHeaders strings={strings} table={table} />
               <tbody>
                 {tableConfig.rowPinning
                   ? table
@@ -317,7 +408,7 @@ export const TableFieldClient: JSONFieldClientComponent = ({ field, path, readOn
                 ) : (
                   <tr>
                     <td className="payload-table-field__empty-state" colSpan={visibleColumnCount}>
-                      No rows to display.
+                      {strings.noRowsToDisplay}
                     </td>
                   </tr>
                 )}
@@ -332,7 +423,12 @@ export const TableFieldClient: JSONFieldClientComponent = ({ field, path, readOn
           </div>
 
           {tableConfig.pagination ? (
-            <TablePagination table={table} pageSizes={tableConfig.paginationPageSizes} />
+            <TablePagination
+              formatNumber={formatNumber}
+              pageSizes={tableConfig.paginationPageSizes}
+              strings={strings}
+              table={table}
+            />
           ) : null}
         </>
       )}

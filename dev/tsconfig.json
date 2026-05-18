@@ -1,31 +1,39 @@
 {
   "compilerOptions": {
-    "target": "es5",
+    "allowJs": true,
+    "esModuleInterop": true,
+    "incremental": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
     "lib": [
       "dom",
       "dom.iterable",
-      "esnext"
+      "es2022"
     ],
-    "allowJs": true,
-    "strict": false,
-    "esModuleInterop": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "resolveJsonModule": true,
     "skipLibCheck": true,
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "jsx": "react",
-    "paths": {
-      "payload/generated-types": [
-        "./src/payload-types.ts"
-      ]
-    }
+    "strict": true,
+    "target": "ES2022"
   },
   "include": [
-    "src"
+    "next-env.d.ts",
+    "payload.config.ts",
+    "plugin.spec.ts",
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules",
-    "dist",
-    "build"
+    "node_modules"
   ],
   "ts-node": {
     "transpileOnly": true,
