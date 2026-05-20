@@ -1,6 +1,9 @@
 {
+  "addColumn": "Add column",
   "addCondition": "Add condition",
+  "addRow": "Add row",
   "addOrGroup": "Add OR group",
+  "columnTitle": "Column title",
   "configureColumns": "Configure at least one table column.",
   "filterColumn": "Filter column",
   "filterOperator": "Filter operator",
@@ -15,10 +18,13 @@
   "pinColumn": "Pin",
   "pinRow": "Pin row",
   "previousPage": "Previous page",
+  "removeColumn": "Remove column",
+  "removeRow": "Remove row",
   "removeFilter": "Remove filter",
   "searchPlaceholder": "Search table...",
   "sortAscending": "Sort ascending",
   "sortDescending": "Sort descending",
+  "tableStructure": "Table structure",
   "unpinRow": "Unpin row",
   "value": "Value"
 }

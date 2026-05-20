@@ -74,3 +74,48 @@ test('creates and reads table data through the local API', async () => {
   assert.equal(foundExamples.totalDocs, 1)
   assert.equal(foundExamples.docs[0]?.table_example?.[1]?.title, mockData[1]?.title)
 })
+
+test('accepts persisted columns alongside rows for dynamic tables', async () => {
+  assert.ok(payloadInstance)
+
+  const createdExample = await payloadInstance.create({
+    collection: 'examples',
+    data: {
+      table_example: {
+        columns: [
+          {
+            key: 'name',
+            label: 'Name',
+          },
+          {
+            key: 'notes',
+            label: 'Notes',
+          },
+        ],
+        rows: [
+          {
+            name: 'Alpha',
+            notes: 'First row',
+          },
+        ],
+      },
+      title: 'Dynamic Table Example',
+    },
+  })
+
+  assert.equal(createdExample.title, 'Dynamic Table Example')
+  assert.equal(createdExample.table_example?.rows?.length, 1)
+  assert.equal(createdExample.table_example?.columns?.[0]?.label, 'Name')
+
+  const foundExamples = await payloadInstance.find({
+    collection: 'examples',
+    where: {
+      title: {
+        equals: 'Dynamic Table Example',
+      },
+    },
+  })
+
+  assert.equal(foundExamples.totalDocs, 1)
+  assert.equal(foundExamples.docs[0]?.table_example?.rows?.[0]?.notes, 'First row')
+})

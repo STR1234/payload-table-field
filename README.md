@@ -54,6 +54,7 @@ const Examples: CollectionConfig = {
         defaultValue: mockData,
       },
       {
+        dynamicColumns: true,
         pagination: true,
         paginationPageSize: 10,
         paginationPageSizes: [5, 10, 25, 50, 100],
@@ -89,6 +90,7 @@ export default Examples
 
 - `columns`: array of column definitions with `key`, plus optional `label`, `name`, `enableSorting`, `inputType`, `placeholder`, and `readOnly`
   `label`, `name`, and `placeholder` can be plain strings or locale maps such as `{ en: 'Title', de: 'Titel' }`
+- `dynamicColumns`: persist column metadata with each document and unlock add / rename / remove column controls in the admin UI. When enabled, the stored JSON value becomes `{ columns, rows }`.
 - `editable`: enable inline cell editing
 - `filters`: enable the built-in column filter builder. Defaults to `true`
 - `pagination`: enable pagination controls
@@ -119,6 +121,8 @@ tableField(
 ```
 
 Built-in fallback translations ship with English, German, and Dutch. The package loads them from the locale files in `src/locales/en.json`, `src/locales/de.json`, and `src/locales/nl.json`.
+
+When `editable` is enabled, the admin UI now also exposes an `Add row` action so empty tables can be populated without a `defaultValue`.
 
 ## Local Development
 

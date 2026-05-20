@@ -1,6 +1,9 @@
 {
+  "addColumn": "Spalte hinzufügen",
   "addCondition": "Bedingung hinzufügen",
+  "addRow": "Zeile hinzufügen",
   "addOrGroup": "ODER-Gruppe hinzufügen",
+  "columnTitle": "Spaltentitel",
   "configureColumns": "Konfiguriere mindestens eine Tabellenspalte.",
   "filterColumn": "Spalte filtern",
   "filterOperator": "Filteroperator",
@@ -15,10 +18,13 @@
   "pinColumn": "Anheften",
   "pinRow": "Zeile anheften",
   "previousPage": "Vorherige Seite",
+  "removeColumn": "Spalte entfernen",
+  "removeRow": "Zeile entfernen",
   "removeFilter": "Filter entfernen",
   "searchPlaceholder": "Tabelle durchsuchen...",
   "sortAscending": "Aufsteigend sortieren",
   "sortDescending": "Absteigend sortieren",
+  "tableStructure": "Tabellenstruktur",
   "unpinRow": "Zeile lösen",
   "value": "Wert"
 }

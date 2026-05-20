@@ -1,6 +1,9 @@
 {
+  "addColumn": "Kolom toevoegen",
   "addCondition": "Voorwaarde toevoegen",
+  "addRow": "Rij toevoegen",
   "addOrGroup": "OF-groep toevoegen",
+  "columnTitle": "Kolomtitel",
   "configureColumns": "Configureer minstens één tabelkolom.",
   "filterColumn": "Kolom filteren",
   "filterOperator": "Filteroperator",
@@ -15,10 +18,13 @@
   "pinColumn": "Vastzetten",
   "pinRow": "Rij vastzetten",
   "previousPage": "Vorige pagina",
+  "removeColumn": "Kolom verwijderen",
+  "removeRow": "Rij verwijderen",
   "removeFilter": "Filter verwijderen",
   "searchPlaceholder": "Tabel doorzoeken...",
   "sortAscending": "Oplopend sorteren",
   "sortDescending": "Aflopend sorteren",
+  "tableStructure": "Tabelstructuur",
   "unpinRow": "Rij losmaken",
   "value": "Waarde"
 }
