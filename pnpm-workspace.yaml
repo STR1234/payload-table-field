@@ -1,0 +1,12 @@
+packages:
+  - '.'
+  - 'dev'
+
+verifyDepsBeforeRun: false
+
+dangerouslyAllowAllBuilds: true
+
+allowBuilds:
+  esbuild: true
+  mongodb-memory-server: true
+  sharp: true

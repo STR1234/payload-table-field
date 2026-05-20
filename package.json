@@ -3,6 +3,7 @@
   "version": "1.1.0",
   "description": "A table field for Payload CMS",
   "type": "module",
+  "packageManager": "pnpm@11.0.8",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -46,6 +47,7 @@
     "jest": "^29.7.0",
     "payload": "^3.0.0",
     "prettier": "^2.7.1",
+    "@tanstack/table-core": "^8.16.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "ts-node": "9.1.1",
@@ -53,8 +55,8 @@
     "webpack": "^5.90.3"
   },
   "scripts": {
-    "prepare": "npm run build",
-    "build": "tsc && npm run copy",
+    "prepare": "pnpm build",
+    "build": "tsc && pnpm copy",
     "copy": "copyfiles -u 1 \"src/**/*.css\" \"src/**/*.json\" dist",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

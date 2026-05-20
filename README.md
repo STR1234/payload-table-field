@@ -22,8 +22,6 @@ Supports Payload 3.x.
 ```bash
   pnpm add payload-table-field
   # OR
-  yarn add payload-table-field
-  # OR
   npm i payload-table-field
 ```
 
@@ -129,22 +127,21 @@ The `dev/` folder contains a Payload 3 + Next.js App Router harness for testing 
 Install the harness dependencies:
 
 ```bash
-cd dev
-npm install --no-package-lock
+pnpm install
 ```
 
 Start the local admin harness:
 
 ```bash
-npm run dev
+pnpm --dir dev dev
 ```
 
 Useful commands:
 
-- `npm run generate:importmap` regenerates the Payload admin import map
-- `npm run generate:types` regenerates Payload types for the harness
-- `npm run test:smoke` runs the Local API smoke test with `mongodb-memory-server`
-- `npm run build` builds the full Next.js harness for production
+- `pnpm generate:importmap` regenerates the Payload admin import map
+- `pnpm generate:types` regenerates Payload types for the harness
+- `pnpm test:smoke` runs the Local API smoke test with `mongodb-memory-server`
+- `pnpm build` builds the full Next.js harness for production
 
 ### Note
 
