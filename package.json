@@ -53,6 +53,7 @@
     "webpack": "^5.90.3"
   },
   "scripts": {
+    "prepare": "npm run build",
     "build": "tsc && npm run copy",
     "copy": "copyfiles -u 1 \"src/**/*.css\" \"src/**/*.json\" dist",
     "test": "echo \"Error: no test specified\" && exit 1"
