@@ -17,6 +17,23 @@ const getHeaderLabel = (
   return meta?.label ?? header.column.id
 }
 
+const getHeaderClassName = (
+  header: ReturnType<Table<any>['getHeaderGroups']>[number]['headers'][number],
+) => {
+  const meta = header.column.columnDef.meta as
+    | {
+        sticky?: 'right'
+        variant?: 'row-actions'
+      }
+    | undefined
+  const classNames = [
+    meta?.sticky === 'right' ? 'payload-table-field__sticky-cell--right' : '',
+    meta?.variant === 'row-actions' ? 'payload-table-field__row-action-cell' : '',
+  ].filter(Boolean)
+
+  return classNames.length > 0 ? classNames.join(' ') : undefined
+}
+
 export function TableHeaders({ table, strings }: TableHeadersProps) {
   return (
     <thead className="payload-table-field__table-head">
@@ -24,9 +41,10 @@ export function TableHeaders({ table, strings }: TableHeadersProps) {
         <tr key={headerGroup.id}>
           {headerGroup.headers.map(header => {
             const headerLabel = getHeaderLabel(header)
+            const headerClassName = getHeaderClassName(header)
 
             return (
-              <th key={header.id} colSpan={header.colSpan}>
+              <th className={headerClassName} key={header.id} colSpan={header.colSpan}>
                 {header.isPlaceholder ? null : (
                   <div className="payload-table-field__sort-header">
                     <span className="payload-table-field__sort-label">

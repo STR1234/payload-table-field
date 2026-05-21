@@ -91,7 +91,7 @@ export function TablePagination({ formatNumber, table, pageSizes, strings }: Tab
         >
           {(pageSizes || [5, 10, 25, 50, 100]).map(pageSizeValue => (
             <option key={pageSizeValue} value={pageSizeValue}>
-              {strings.perPage}: {formatNumber(pageSizeValue)}
+              {strings.perPage(pageSizeValue)}
             </option>
           ))}
         </select>
