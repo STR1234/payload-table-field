@@ -3,12 +3,12 @@
 import { useLocale, useTranslation } from "@payloadcms/ui";
 import { useMemo } from "react";
 
-import { defaultTableFieldTranslations } from "./locales/index.js";
+import { defaultTableFieldTranslations } from "../locales/index.js";
 import type {
   TableFieldLocalizedString,
   TableFieldTranslationKey,
   TableFieldTranslationsByLocale,
-} from "./types.js";
+} from "../types.js";
 
 const getLocaleCandidates = (...codes: Array<string | null | undefined>) => {
   const seen = new Set<string>();

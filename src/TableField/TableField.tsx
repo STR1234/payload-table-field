@@ -3,7 +3,6 @@
 import { FieldLabel, useField } from "@payloadcms/ui";
 import { RankingInfo } from "@tanstack/match-sorter-utils";
 import {
-  flexRender,
   getCoreRowModel,
   getFacetedRowModel,
   getFilteredRowModel,
@@ -13,15 +12,35 @@ import {
   type ColumnDef,
   type FilterFn,
   type PaginationState,
-  type Row,
   type RowData,
   type RowPinningState,
-  type RowSelectionState,
   type SortingState,
 } from "@tanstack/react-table";
 import type { JSONFieldClientComponent } from "payload";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentProps,
+} from "react";
 
+import {
+  createBlankTableRow,
+  createTableFieldValue,
+  createUniqueColumnKey,
+  getTableFieldState,
+  TABLE_FIELD_CUSTOM_KEY,
+  type TableFieldColumnConfig,
+  type TableFieldConfig,
+  type TableFieldLocalizedString,
+  type TableFieldRow,
+  type TableFieldValue,
+} from "../types.js";
+import { EditableCell } from "./EditableCell.js";
+import { TableBody } from "./TableBody.js";
+import { TableColumnManager } from "./TableColumnManager.js";
 import { TableControls } from "./TableControls.js";
 import "./TableField.css";
 import {
@@ -37,19 +56,15 @@ import {
   type TableFilterGroup,
 } from "./TableFilters.js";
 import { TableHeaders } from "./TableHeaders.js";
-import { PlusIcon, XIcon } from "./TableIcons.js";
+import { XIcon } from "./TableIcons.js";
 import { TablePagination } from "./TablePagination.js";
 import {
-  createBlankTableRow,
-  createTableFieldValue,
-  createUniqueColumnKey,
-  getTableFieldState,
-  TABLE_FIELD_CUSTOM_KEY,
-  type TableFieldColumnConfig,
-  type TableFieldConfig,
-  type TableFieldRow,
-  type TableFieldValue,
-} from "./types.js";
+  remapRowPinning,
+  remapRowSelection,
+  TABLE_ROW_ACTIONS_COLUMN_ID,
+  TABLE_ROW_INDEX_KEY,
+  type TableDisplayRow,
+} from "./tableFieldUtils.js";
 
 declare module "@tanstack/react-table" {
   interface TableMeta<TData extends RowData> {
@@ -72,95 +87,7 @@ declare module "@tanstack/table-core" {
   }
 }
 
-const TABLE_ROW_INDEX_KEY = "__payloadTableFieldOriginalIndex" as const;
-const TABLE_ROW_ACTIONS_COLUMN_ID = "__payloadTableFieldRowActions" as const;
-type TableDisplayRow = TableFieldRow & { [TABLE_ROW_INDEX_KEY]: number };
-type TableFieldProps = React.ComponentProps<JSONFieldClientComponent>;
-
-const getTableCellClassName = (
-  column: ReturnType<Row<TableDisplayRow>["getVisibleCells"]>[number]["column"]
-) => {
-  const meta = column.columnDef.meta as
-    | {
-        sticky?: "right";
-        variant?: "row-actions";
-      }
-    | undefined;
-  const classNames = [
-    meta?.sticky === "right" ? "payload-table-field__sticky-cell--right" : "",
-    meta?.variant === "row-actions" ? "payload-table-field__row-action-cell" : "",
-  ].filter(Boolean);
-
-  return classNames.length > 0 ? classNames.join(" ") : undefined;
-};
-
-const remapRowIds = (
-  rowIds: string[] | undefined,
-  mapIndex: (rowIndex: number) => number | null
-): string[] | undefined => {
-  if (!rowIds) {
-    return rowIds;
-  }
-
-  return rowIds.flatMap((rowId) => {
-    const rowIndex = Number(rowId);
-
-    if (!Number.isInteger(rowIndex)) {
-      return [rowId];
-    }
-
-    const nextIndex = mapIndex(rowIndex);
-
-    return nextIndex === null ? [] : [String(nextIndex)];
-  });
-};
-
-const remapRowSelection = (
-  rowSelection: RowSelectionState,
-  mapIndex: (rowIndex: number) => number | null
-): RowSelectionState => {
-  return Object.fromEntries(
-    Object.entries(rowSelection).flatMap(([rowId, isSelected]) => {
-      const rowIndex = Number(rowId);
-
-      if (!Number.isInteger(rowIndex)) {
-        return [[rowId, isSelected]];
-      }
-
-      const nextIndex = mapIndex(rowIndex);
-
-      return nextIndex === null ? [] : [[String(nextIndex), isSelected]];
-    })
-  ) as RowSelectionState;
-};
-
-const remapRowPinning = (
-  rowPinning: RowPinningState,
-  mapIndex: (rowIndex: number) => number | null
-): RowPinningState => ({
-  bottom: remapRowIds(rowPinning.bottom, mapIndex),
-  top: remapRowIds(rowPinning.top, mapIndex),
-});
-
-const formatCellValue = (value: unknown): string => {
-  if (value === null || value === undefined) {
-    return "";
-  }
-
-  if (
-    typeof value === "boolean" ||
-    typeof value === "number" ||
-    typeof value === "string"
-  ) {
-    return String(value);
-  }
-
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return "";
-  }
-};
+type TableFieldProps = ComponentProps<JSONFieldClientComponent>;
 
 const getTableConfig = (
   field: TableFieldProps["field"]
@@ -178,76 +105,78 @@ const getTableConfig = (
   return config as TableFieldConfig;
 };
 
-type EditableCellProps = {
-  ariaLabel: string;
-  columnId: string;
-  inputType?: string;
-  isReadOnly: boolean;
-  onCommit: (value: string) => void;
-  placeholder?: string;
-  value: unknown;
-};
-
-const EditableCell: React.FC<EditableCellProps> = ({
-  ariaLabel,
-  columnId,
-  inputType,
-  isReadOnly,
-  onCommit,
-  placeholder,
-  value,
-}) => {
-  const [inputValue, setInputValue] = useState(formatCellValue(value));
-
-  useEffect(() => {
-    setInputValue(formatCellValue(value));
-  }, [value]);
-
-  if (isReadOnly) {
-    return <span>{formatCellValue(value)}</span>;
+const areLocalizedStringsEqual = (
+  left: TableFieldLocalizedString | undefined,
+  right: TableFieldLocalizedString | undefined
+) => {
+  if (left === right) {
+    return true;
   }
 
-  return (
-    <input
-      aria-label={ariaLabel || columnId}
-      className="payload-table-field__cell-input"
-      onBlur={() => onCommit(inputValue)}
-      onChange={(event) => setInputValue(event.target.value)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") {
-          event.currentTarget.blur();
-        }
-      }}
-      placeholder={placeholder}
-      type={inputType ?? "text"}
-      value={inputValue}
-    />
-  );
+  if (!left || !right || typeof left === "string" || typeof right === "string") {
+    return false;
+  }
+
+  const leftEntries = Object.entries(left);
+
+  if (leftEntries.length !== Object.keys(right).length) {
+    return false;
+  }
+
+  return leftEntries.every(([locale, value]) => right[locale] === value);
 };
 
-type ManagedColumnTitleInputProps = {
-  ariaLabel: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  value: string;
+const areColumnConfigsEqual = (
+  left: TableFieldColumnConfig[],
+  right: TableFieldColumnConfig[]
+) => {
+  if (left === right) {
+    return true;
+  }
+
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((column, index) => {
+    const nextColumn = right[index];
+
+    return (
+      column.key === nextColumn.key &&
+      column.enableSorting === nextColumn.enableSorting &&
+      column.inputType === nextColumn.inputType &&
+      column.readOnly === nextColumn.readOnly &&
+      areLocalizedStringsEqual(column.label, nextColumn.label) &&
+      areLocalizedStringsEqual(column.name, nextColumn.name) &&
+      areLocalizedStringsEqual(column.placeholder, nextColumn.placeholder)
+    );
+  });
 };
 
-const ManagedColumnTitleInput: React.FC<ManagedColumnTitleInputProps> = ({
-  ariaLabel,
-  onChange,
-  placeholder,
-  value,
-}) => {
-  return (
-    <input
-      aria-label={ariaLabel}
-      className="payload-table-field__column-title-input"
-      onChange={(event) => onChange(event.target.value)}
-      placeholder={placeholder}
-      type="text"
-      value={value}
-    />
-  );
+const areRowsEqual = (left: TableFieldRow[], right: TableFieldRow[]) => {
+  if (left === right) {
+    return true;
+  }
+
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  return left.every((row, index) => {
+    const nextRow = right[index];
+
+    if (row === nextRow) {
+      return true;
+    }
+
+    const rowEntries = Object.entries(row);
+
+    if (rowEntries.length !== Object.keys(nextRow).length) {
+      return false;
+    }
+
+    return rowEntries.every(([key, value]) => Object.is(nextRow[key], value));
+  });
 };
 
 export const TableFieldClient: JSONFieldClientComponent = ({
@@ -294,6 +223,8 @@ export const TableFieldClient: JSONFieldClientComponent = ({
   const [managedColumns, setManagedColumns] = useState<
     TableFieldColumnConfig[]
   >(() => getTableFieldState(value, configuredColumns).columns);
+  const dataRef = useRef<TableFieldRow[]>(data);
+  const managedColumnsRef = useRef<TableFieldColumnConfig[]>(managedColumns);
   const [newColumnTitle, setNewColumnTitle] = useState("");
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: tableConfig?.paginationPageIndex ?? 0,
@@ -310,20 +241,38 @@ export const TableFieldClient: JSONFieldClientComponent = ({
   const [showColumns, setShowColumns] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [filterGroups, setFilterGroups] = useState<TableFilterGroup[]>([]);
-  const [recentlyAddedRowIndex, setRecentlyAddedRowIndex] = useState<number | null>(null);
+  const [recentlyAddedRowIndex, setRecentlyAddedRowIndex] = useState<
+    number | null
+  >(null);
   const [autoResetPageIndex, skipAutoResetPageIndex] = useSkipper();
   const rowPinningEnabled = Boolean(tableConfig?.rowPinning);
   const paginationEnabled = Boolean(tableConfig?.pagination);
 
   useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
+  useEffect(() => {
+    managedColumnsRef.current = managedColumns;
+  }, [managedColumns]);
+
+  useEffect(() => {
     const nextState = getTableFieldState(value, configuredColumns);
 
-    setData(nextState.rows);
-    setManagedColumns(nextState.columns);
+    setData((currentData) =>
+      areRowsEqual(currentData, nextState.rows) ? currentData : nextState.rows
+    );
+    setManagedColumns((currentColumns) =>
+      areColumnConfigsEqual(currentColumns, nextState.columns)
+        ? currentColumns
+        : nextState.columns
+    );
   }, [configuredColumns, value]);
 
   const commitTableValue = useCallback(
     (nextRows: TableFieldRow[], nextColumns: TableFieldColumnConfig[]) => {
+      dataRef.current = nextRows;
+      managedColumnsRef.current = nextColumns;
       setData(nextRows);
       setManagedColumns(nextColumns);
       setValue(
@@ -370,7 +319,15 @@ export const TableFieldClient: JSONFieldClientComponent = ({
     (rowIndex: number, columnId: string, nextValue: unknown) => {
       skipAutoResetPageIndex();
 
-      const nextData = data.map((row, index) => {
+      const currentData = dataRef.current;
+      const currentColumns = managedColumnsRef.current;
+      const currentRow = currentData[rowIndex];
+
+      if (!currentRow || Object.is(currentRow[columnId], nextValue)) {
+        return;
+      }
+
+      const nextData = currentData.map((row, index) => {
         if (index === rowIndex) {
           return {
             ...row,
@@ -381,9 +338,9 @@ export const TableFieldClient: JSONFieldClientComponent = ({
         return row;
       });
 
-      commitTableValue(nextData, managedColumns);
+      commitTableValue(nextData, currentColumns);
     },
-    [commitTableValue, data, managedColumns, skipAutoResetPageIndex]
+    [commitTableValue, skipAutoResetPageIndex]
   );
 
   const getColumnLabel = useCallback(
@@ -591,9 +548,7 @@ export const TableFieldClient: JSONFieldClientComponent = ({
     }
 
     if (
-      nextData.some(
-        (row) => row[TABLE_ROW_INDEX_KEY] === recentlyAddedRowIndex
-      )
+      nextData.some((row) => row[TABLE_ROW_INDEX_KEY] === recentlyAddedRowIndex)
     ) {
       return nextData;
     }
@@ -746,127 +701,25 @@ export const TableFieldClient: JSONFieldClientComponent = ({
     onSortingChange: setSorting,
   });
 
-  const renderTableRow = useCallback(
-    (
-      row: Row<TableDisplayRow>,
-      options?: {
-        className?: string;
-        keyPrefix?: string;
-        style?: React.CSSProperties;
-      }
-    ) => {
-      return (
-        <tr
-          className={options?.className}
-          key={`${options?.keyPrefix ?? "row"}-${row.id}`}
-          style={options?.style}
-        >
-          {row.getVisibleCells().map((cell) => (
-            <td className={getTableCellClassName(cell.column)} key={cell.id}>
-              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-            </td>
-          ))}
-        </tr>
-      );
-    },
-    []
-  );
-
-  const visibleColumnCount = Math.max(table.getVisibleLeafColumns().length, 1);
-  const recentlyAddedRow =
-    recentlyAddedRowIndex === null
-      ? undefined
-      : table
-          .getPrePaginationRowModel()
-          .rows.find(
-            (row) => row.original[TABLE_ROW_INDEX_KEY] === recentlyAddedRowIndex
-          );
-  const shouldRenderRecentlyAddedRow = Boolean(
-    recentlyAddedRow && (!paginationEnabled || pagination.pageIndex === 0)
-  );
-  const centerRows = rowPinningEnabled
-    ? table.getCenterRows()
-    : table.getRowModel().rows;
-  const visibleCenterRows = shouldRenderRecentlyAddedRow
-    ? centerRows.filter(
-        (row) => row.original[TABLE_ROW_INDEX_KEY] !== recentlyAddedRowIndex
-      )
-    : centerRows;
   const filtersEnabled =
     tableConfig?.filters !== false && managedColumns.length > 0;
   const canManageColumns = Boolean(
     tableConfig?.editable && dynamicColumnsEnabled && !readOnly
   );
-  const canRenderTableUI = managedColumns.length > 0 || canManageColumns;
   const hasConfiguredColumns = managedColumns.length > 0;
+  const canRenderTableUI = hasConfiguredColumns || canManageColumns;
   const columnManager = canManageColumns ? (
-    <div className="payload-table-field__column-manager">
-      <div className="payload-table-field__column-manager-header">
-        <span className="payload-table-field__filters-label">
-          {strings.tableStructure}
-        </span>
-        {!hasConfiguredColumns ? (
-          <p className="payload-table-field__column-manager-empty">
-            {strings.configureColumns}
-          </p>
-        ) : null}
-      </div>
-
-      {hasConfiguredColumns ? (
-        <div className="payload-table-field__column-manager-list">
-          {managedColumns.map((column) => {
-            const columnLabel = getColumnLabel(column);
-
-            return (
-              <div
-                className="payload-table-field__column-manager-row"
-                key={column.key}
-              >
-                <ManagedColumnTitleInput
-                  ariaLabel={`${strings.columnTitle}: ${columnLabel}`}
-                  onChange={(nextValue) =>
-                    updateColumnTitle(column.key, nextValue)
-                  }
-                  placeholder={strings.columnTitle}
-                  value={columnLabel}
-                />
-                <span className="payload-table-field__column-key">
-                  {column.key}
-                </span>
-                <button
-                  aria-label={`${strings.removeColumn}: ${columnLabel}`}
-                  className="payload-table-field__pill payload-table-field__pill--danger"
-                  onClick={() => removeColumn(column.key)}
-                  type="button"
-                >
-                  <XIcon size={12} />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      ) : null}
-
-      <div className="payload-table-field__column-manager-add">
-        <ManagedColumnTitleInput
-          ariaLabel={strings.columnTitle}
-          onChange={setNewColumnTitle}
-          placeholder={strings.columnTitle}
-          value={newColumnTitle}
-        />
-        <button
-          className="payload-table-field__button payload-table-field__button--primary"
-          disabled={!newColumnTitle.trim()}
-          onClick={addColumn}
-          type="button"
-        >
-          <span className="payload-table-field__button-label">
-            <PlusIcon size={14} />
-            {strings.addColumn}
-          </span>
-        </button>
-      </div>
-    </div>
+    <TableColumnManager
+      getColumnLabel={getColumnLabel}
+      hasConfiguredColumns={hasConfiguredColumns}
+      managedColumns={managedColumns}
+      newColumnTitle={newColumnTitle}
+      onAddColumn={addColumn}
+      onNewColumnTitleChange={setNewColumnTitle}
+      onRemoveColumn={removeColumn}
+      onUpdateColumnTitle={updateColumnTitle}
+      strings={strings}
+    />
   ) : undefined;
 
   return (
@@ -921,61 +774,14 @@ export const TableFieldClient: JSONFieldClientComponent = ({
             {hasConfiguredColumns ? (
               <table className="payload-table-field__table">
                 <TableHeaders strings={strings} table={table} />
-                <tbody>
-                  {shouldRenderRecentlyAddedRow && recentlyAddedRow
-                    ? renderTableRow(recentlyAddedRow, {
-                        className: "payload-table-field__new-row",
-                        keyPrefix: "new-row",
-                      })
-                    : null}
-
-                  {rowPinningEnabled
-                    ? table
-                        .getTopRows()
-                        .map((row) =>
-                          renderTableRow(row, {
-                            className: "payload-table-field__pinned-row",
-                            keyPrefix: "pinned-top",
-                            style: {
-                              backgroundColor: "var(--theme-elevation-200)",
-                              position: "sticky",
-                              top:
-                                row.getIsPinned() === "top"
-                                  ? `${row.getPinnedIndex() * 49 + 49}px`
-                                  : undefined,
-                            },
-                          })
-                        )
-                    : null}
-
-                  {visibleCenterRows.length > 0 ? (
-                    visibleCenterRows.map((row) => renderTableRow(row))
-                  ) : (
-                    <tr>
-                      <td
-                        className="payload-table-field__empty-state"
-                        colSpan={visibleColumnCount}
-                      >
-                        {strings.noRowsToDisplay}
-                      </td>
-                    </tr>
-                  )}
-
-                  {rowPinningEnabled
-                    ? table
-                        .getBottomRows()
-                        .map((row) =>
-                          renderTableRow(row, {
-                            className: "payload-table-field__pinned-row",
-                            keyPrefix: "pinned-bottom",
-                            style: {
-                              backgroundColor: "var(--theme-elevation-200)",
-                              position: "sticky",
-                            },
-                          })
-                        )
-                    : null}
-                </tbody>
+                <TableBody
+                  pageIndex={pagination.pageIndex}
+                  paginationEnabled={paginationEnabled}
+                  recentlyAddedRowIndex={recentlyAddedRowIndex}
+                  rowPinningEnabled={rowPinningEnabled}
+                  strings={strings}
+                  table={table}
+                />
               </table>
             ) : (
               <div className="payload-table-field__empty-state payload-table-field__empty-state--panel">

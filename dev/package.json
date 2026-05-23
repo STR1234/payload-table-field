@@ -8,7 +8,9 @@
   "scripts": {
     "build:plugin": "pnpm --dir .. build",
     "predev": "pnpm build:plugin && pnpm generate:importmap",
-    "dev": "cross-env NODE_OPTIONS=--no-deprecation next dev --webpack",
+    "dev": "node ./run-dev.mjs",
+    "dev:next": "cross-env NODE_OPTIONS=--no-deprecation next dev --webpack",
+    "dev:plugin-watch": "node ./plugin-watch.mjs",
     "prebuild": "pnpm build:plugin && pnpm generate:importmap",
     "build": "cross-env NODE_OPTIONS=--no-deprecation next build --webpack",
     "pregenerate:importmap": "pnpm build:plugin",

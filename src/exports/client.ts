@@ -1,1 +1,1 @@
-export { TableFieldClient } from '../TableField.js'
+export { TableFieldClient } from "../TableField/TableField.js";

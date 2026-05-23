@@ -1,4 +1,5 @@
 # Payload Table Field
+
 #### Adds a table field (using [TanStack Table](https://tanstack.com/table/latest)) to [Payload](https://payloadcms.com/).
 
 Supports Payload 3.x.
@@ -13,9 +14,7 @@ Supports Payload 3.x.
 - Row Selection
 - Row Pinning
 
-
 ![image](https://github.com/notchris/payload-table-field/blob/main/example.png?raw=true)
-
 
 ## Installation
 
@@ -32,25 +31,25 @@ Make sure your app is already running on Payload 3.x.
 Import the field and then use it in your payload collection fields array.
 
 ```ts
-import type { CollectionConfig } from 'payload'
-import { tableField } from 'payload-table-field'
+import type { CollectionConfig } from "payload";
+import { tableField } from "payload-table-field";
 
-import mockData from '../mocks/mockData'
+import mockData from "../mocks/mockData";
 
 const Examples: CollectionConfig = {
-  slug: 'examples',
+  slug: "examples",
   admin: {
-    useAsTitle: 'title',
+    useAsTitle: "title",
   },
   fields: [
     {
-      type: 'text',
-      name: 'title',
+      type: "text",
+      name: "title",
     },
     tableField(
       {
-        name: 'table_example',
-        label: 'Example Table - Movies',
+        name: "table_example",
+        label: "Example Table - Movies",
         defaultValue: mockData,
       },
       {
@@ -63,19 +62,19 @@ const Examples: CollectionConfig = {
         rowPinning: true,
         columns: [
           {
-            key: 'id',
-            label: 'ID',
+            key: "id",
+            label: "ID",
             enableSorting: true,
           },
-          { key: 'title', label: 'Title', enableSorting: true },
-          { key: 'year', label: 'Year', enableSorting: true },
+          { key: "title", label: "Title", enableSorting: true },
+          { key: "year", label: "Year", enableSorting: true },
         ],
-      },
+      }
     ),
   ],
-}
+};
 
-export default Examples
+export default Examples;
 ```
 
 ## Configuration
@@ -107,17 +106,17 @@ Example `translations` override:
 ```ts
 tableField(
   {
-    name: 'table_example',
+    name: "table_example",
   },
   {
-    columns: [{ key: 'title', label: { en: 'Title', de: 'Titel' } }],
+    columns: [{ key: "title", label: { en: "Title", de: "Titel" } }],
     translations: {
       de: {
-        searchPlaceholder: 'Tabelle durchsuchen...',
+        searchPlaceholder: "Tabelle durchsuchen...",
       },
     },
-  },
-)
+  }
+);
 ```
 
 Built-in fallback translations ship with English, German, and Dutch. The package loads them from the locale files in `src/locales/en.json`, `src/locales/de.json`, and `src/locales/nl.json`.
@@ -140,6 +139,14 @@ Start the local admin harness:
 pnpm --dir dev dev
 ```
 
+`pnpm --dir dev dev` now does three things for local plugin work:
+
+- builds the package once before startup so Payload can generate the admin import map
+- runs the Next.js dev server for the harness
+- watches the root plugin source and rebuilds the linked package in the background after each change
+
+The harness also aliases `payload-table-field`, `payload-table-field/client`, and `payload-table-field/types` to the root `src/` entry files during development. That means the Next.js admin uses the newest source directly, which gives you the best chance of hot reload instead of waiting on stale `dist/` output.
+
 Useful commands:
 
 - `pnpm generate:importmap` regenerates the Payload admin import map
@@ -150,3 +157,5 @@ Useful commands:
 ### Note
 
 Payload will add this package's client component to the admin import map automatically through the field config. If your app is not picking up a new component path yet, regenerate the import map with `payload generate:importmap`.
+
+If you are checking `console.log` output while debugging, client-side logs from the admin UI appear in the browser devtools console, while server-side logs from Payload and Next.js appear in the terminal that started `pnpm --dir dev dev`.
