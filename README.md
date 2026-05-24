@@ -51,6 +51,7 @@ const Examples: CollectionConfig = {
         name: "table_example",
         label: "Example Table - Movies",
         defaultValue: mockData,
+        localized: true,
       },
       {
         dynamicColumns: true,
@@ -84,6 +85,7 @@ export default Examples;
 `fieldOptions`:
 
 - Any normal Payload `json` field option except `type`
+- Set `localized: true` to store table data per locale, same as any other localized Payload field
 
 `tableOptions`:
 

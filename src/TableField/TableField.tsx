@@ -113,7 +113,12 @@ const areLocalizedStringsEqual = (
     return true;
   }
 
-  if (!left || !right || typeof left === "string" || typeof right === "string") {
+  if (
+    !left ||
+    !right ||
+    typeof left === "string" ||
+    typeof right === "string"
+  ) {
     return false;
   }
 
@@ -181,7 +186,7 @@ const areRowsEqual = (left: TableFieldRow[], right: TableFieldRow[]) => {
 
 export const TableFieldClient: JSONFieldClientComponent = ({
   field,
-  path,
+  path: pathFromProps,
   readOnly,
   validate,
 }) => {
@@ -211,9 +216,9 @@ export const TableFieldClient: JSONFieldClientComponent = ({
     [configuredColumns, validate]
   );
 
-  const { errorMessage, setValue, showError, value } =
+  const { errorMessage, path, setValue, showError, value } =
     useField<TableFieldValue>({
-      path,
+      potentiallyStalePath: pathFromProps,
       validate: memoizedValidate as never,
     });
 
@@ -730,6 +735,7 @@ export const TableFieldClient: JSONFieldClientComponent = ({
 
       <FieldLabel
         label={field.label ?? field.name}
+        localized={field.localized}
         path={path}
         required={field.required}
       />
