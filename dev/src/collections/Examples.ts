@@ -19,6 +19,7 @@ const Examples: CollectionConfig = {
         name: "table_example",
         label: "Example Table - Movies",
         defaultValue: mockData,
+        localized: true,
         required: true,
       },
       {
